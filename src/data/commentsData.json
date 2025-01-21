@@ -1,0 +1,19 @@
+[
+  {
+    "filePath": "/Users/benedictoseisefa/Desktop/backend/customer/views.py",
+    "range": {
+      "start": {
+        "line": 13,
+        "character": 1
+      },
+      "end": {
+        "line": 20,
+        "character": 33
+      }
+    },
+    "text": "wow this looks great",
+    "highlightedCode": "rom rest_framework.decorators import api_view\nfrom rest_framework.response import Response\nfrom rest_framework_simplejwt.views import TokenObtainPairView\nfrom rest_framework import generics\nfrom rest_framework.permissions import AllowAny, IsAuthenticated\nfrom rest_framework.decorators import api_view, permission_classes\nfrom rest_framework.views import APIView\nfrom rest_framework import status",
+    "replies": [],
+    "resolved": false
+  }
+]
