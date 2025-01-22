@@ -40,6 +40,14 @@
       {
         "command": "extension.viewQuestionsAndAnswers",
         "title": "View Questions and Answers"
+      },
+      {
+        "command": "extension.addPersonalizedQuestion",
+        "title": "Add Personalized Question"
+      },
+      {
+        "command": "extension.viewPersonalizedQuestions",
+        "title": "View Personalized Questions"
       }
     ],
     "menus": {

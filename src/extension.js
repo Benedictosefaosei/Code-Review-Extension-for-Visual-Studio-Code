@@ -7,6 +7,7 @@ const path = require('path');
 // In-memory storage for comments and questions
 const commentsData = [];
 const questionsData = [];
+let personalizedQuestionsData = [];
 
 // Helper function to get the workspace directory
 function getWorkspaceDirectory() {
@@ -37,6 +38,20 @@ function loadDataFromFile(fileName) {
   }
   return [];
 }
+
+// Helper function to get the Downloads directory
+function getDownloadsDirectory() {
+  const homeDir = require('os').homedir();
+  return path.join(homeDir, 'Downloads');
+}
+
+// Helper function to save personalized questions to the Downloads folder
+function savePersonalizedQuestionsToFile(fileName, data) {
+  const downloadsDir = getDownloadsDirectory();
+  const filePath = path.join(downloadsDir, fileName);
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+}
+
 
 /**
  * Activate the extension
@@ -502,13 +517,165 @@ function activate(context) {
 
 
 
+  // Command: Add Personalized Question
+  let addPersonalizedQuestionCommand = vscode.commands.registerCommand('extension.addPersonalizedQuestion', async () => {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      vscode.window.showErrorMessage('No active editor found.');
+      return;
+    }
+
+    const selection = editor.selection;
+    if (selection.isEmpty) {
+      vscode.window.showErrorMessage('Please select a code snippet to add a personalized question.');
+      return;
+    }
+
+    const range = new vscode.Range(selection.start, selection.end);
+    const selectedText = editor.document.getText(range);
+
+    // Create a Webview Panel for adding a personalized question
+    const panel = vscode.window.createWebviewPanel(
+      'addPersonalizedQuestion', // Panel ID
+      'Add Personalized Question', // Panel title
+      vscode.ViewColumn.One, // Show in the active column
+      { enableScripts: true } // Allow JavaScript in the Webview
+    );
+
+    // HTML content for the Webview
+    panel.webview.html = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Add Personalized Question</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        textarea { width: 100%; height: 100px; font-size: 14px; margin-bottom: 10px; }
+        button { padding: 10px 20px; background: #007acc; color: white; border: none; cursor: pointer; }
+        button:hover { background: #005a9e; }
+      </style>
+    </head>
+    <body>
+      <h1>Add a Personalized Question</h1>
+      <p><strong>Selected Code:</strong></p>
+      <pre>${selectedText}</pre>
+      <textarea id="question" placeholder="Type your personalized question here..."></textarea>
+      <button onclick="submitPersonalizedQuestion()">Submit</button>
+      <script>
+        const vscode = acquireVsCodeApi();
+        function submitPersonalizedQuestion() {
+          const question = document.getElementById('question').value;
+          if (question.trim() === '') {
+            alert('Question cannot be empty!');
+            return;
+          }
+          vscode.postMessage({ question });
+        }
+      </script>
+    </body>
+    </html>
+  `;
+
+    // Handle messages from the Webview
+    panel.webview.onDidReceiveMessage((message) => {
+      if (message.question) {
+        personalizedQuestionsData.push({
+          filePath: editor.document.uri.fsPath,
+          range: {
+            start: { line: selection.start.line, character: selection.start.character },
+            end: { line: selection.end.line, character: selection.end.character },
+          },
+          text: message.question,
+          highlightedCode: selectedText,
+        });
+
+        savePersonalizedQuestionsToFile('personalizedQuestions.json', personalizedQuestionsData); // Save to Downloads
+        vscode.window.showInformationMessage('Personalized question added successfully!');
+        panel.dispose();
+      }
+    });
+  });
+
+  let viewPersonalizedQuestionsCommand = vscode.commands.registerCommand('extension.viewPersonalizedQuestions', async () => {
+    if (personalizedQuestionsData.length === 0) {
+      vscode.window.showInformationMessage('No personalized questions added yet!');
+      return;
+    }
+
+    // Create a Webview Panel for viewing personalized questions
+    const panel = vscode.window.createWebviewPanel(
+      'viewPersonalizedQuestions', // Panel ID
+      'View Personalized Questions', // Panel title
+      vscode.ViewColumn.One, // Show in the active column
+      { enableScripts: true } // Allow JavaScript in the Webview
+    );
+
+    // Build a table with all the personalized questions
+    const questionsTable = personalizedQuestionsData.map((question, index) => {
+      const range = `${question.range.start.line}:${question.range.start.character} - ${question.range.end.line}:${question.range.end.character}`;
+      return `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${question.filePath}</td>
+        <td>${range}</td>
+        <td><pre>${question.highlightedCode || 'No highlighted code'}</pre></td>
+        <td>${question.text || 'No question'}</td>
+      </tr>
+    `;
+    }).join('');
+
+    // HTML content for the Webview
+    panel.webview.html = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>View Personalized Questions</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #007acc; color: white; }
+        pre { background-color: rgb(0, 0, 0); padding: 5px; border-radius: 5px; }
+        button { margin-top: 20px; padding: 10px 20px; background: #007acc; color: white; border: none; cursor: pointer; }
+        button:hover { background: #005a9e; }
+      </style>
+    </head>
+    <body>
+      <h1>All Personalized Questions</h1>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>File</th>
+            <th>Range</th>
+            <th>Highlighted Code</th>
+            <th>Question</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${questionsTable}
+        </tbody>
+      </table>
+    </body>
+    </html>
+  `;
+  });
+
+
+
 
   context.subscriptions.push(
     highlightAndCommentCommand,
     viewCommentsCommand,
     askQuestionCommand,
     answerQuestionCommand,
-    viewQuestionsAndAnswersCommand
+    viewQuestionsAndAnswersCommand,
+    addPersonalizedQuestionCommand,
+    viewPersonalizedQuestionsCommand
   );
 }
 
