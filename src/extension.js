@@ -18,13 +18,7 @@ function getWorkspaceDirectory() {
   }
 }
 
-
-
-// // Helper function to save data to a file
-// function saveDataToFile(fileName, data) {
-//   const filePath = path.join(__dirname, fileName);
-//   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-// }
+//kurmasz
 
 // Helper function to save data to a file in the workspace directory
 function saveDataToFile(fileName, data) {
@@ -33,14 +27,6 @@ function saveDataToFile(fileName, data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
-// // Helper function to load data from a file
-// function loadDataFromFile(fileName) {
-//   const filePath = path.join(__dirname, fileName);
-//   if (fs.existsSync(filePath)) {
-//     return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-//   }
-//   return [];
-// }
 
 // Helper function to load data from a file in the workspace directory
 function loadDataFromFile(fileName) {
