@@ -49,10 +49,20 @@ Welcome to the **Code Review Extension**! This extension allows users to easily 
   2. A table will appear listing all questions, answers, and associated code snippets.
   3. Questions can be answered by clicking the **"Answer"** button in the table.
 
-### 6. Export Comments and Questions
+### 6. Add Personalized Questions
 - **How to Use**:
-  1. In the **View Questions and Answers** panel, click the **"Export to CSV"** button.
-  2. This will download a CSV file containing all questions, answers, and highlighted code snippets.
+  1. Highlight a code snippet in the editor.
+  2. Right-click and select **"Add Personalized Question"** from the context menu.
+  3. A panel will open where you can type your personalized question and save it.
+
+- **How It Works**:
+  - The personalized question is saved to a `personalizedQuestions.json` file in the project directory.
+  - The file is automatically added to the `.gitignore` file to ensure it is not pushed to GitHub.
+
+### 7. View Personalized Questions
+- **How to Use**:
+  1. Open the Command Palette and select **"View Personalized Questions"**.
+  2. A table will appear listing all personalized questions, their highlighted code snippets, and the associated files.
 
 ---
 
@@ -67,9 +77,15 @@ Welcome to the **Code Review Extension**! This extension allows users to easily 
 
 ## **How It Works**
 
-1. **Data Storage**: Comments and questions are saved as JSON files (`commentsData.json` and `questionsData.json`) in the current project directory. This ensures that your data is project-specific and portable.
-2. **Green Highlights**: Any code snippet with comments or questions will be visually highlighted with a green background, making it easy to identify.
-3. **Webview Panels**: The extension uses rich Webview panels to display comments, questions, and answers in a user-friendly table format.
+1. **Data Storage**:
+   - Comments and questions are saved as JSON files (`commentsData.json` and `questionsData.json`) in the current project directory.
+   - Personalized questions are saved in `personalizedQuestions.json` in the project directory and excluded from version control via `.gitignore`.
+
+2. **Green Highlights**:
+   - Any code snippet with comments or questions will be visually highlighted with a green background, making it easy to identify.
+
+3. **Webview Panels**:
+   - The extension uses rich Webview panels to display comments, questions, and answers in a user-friendly table format.
 
 ---
 
@@ -81,6 +97,8 @@ Welcome to the **Code Review Extension**! This extension allows users to easily 
 | Answer Question               | `Ctrl+Shift+P`      | No                               |
 | View All Comments             | `Ctrl+Shift+P`      | No                               |
 | View Questions and Answers    | `Ctrl+Shift+P`      | No                               |
+| Add Personalized Question     | `Ctrl+Shift+P`      | Non                              |
+| View Personalized Questions   | `Ctrl+Shift+P`      | No                               |
 
 ---
 

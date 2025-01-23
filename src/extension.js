@@ -40,7 +40,8 @@ function loadDataFromFile(fileName) {
 }
 
 
-// Helper function to ensure personalizedQuestions.json is added to .gitignore
+// Helper function to ensure personalizedQuestions.json 
+// is added to .gitignore and creates .gitignore if it's not added
 function ensureGitIgnoreForPersonalizedQuestions() {
   const workspaceDir = getWorkspaceDirectory();
   const gitignorePath = path.join(workspaceDir, ".gitignore");
