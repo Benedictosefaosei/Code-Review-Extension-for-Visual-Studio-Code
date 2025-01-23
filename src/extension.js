@@ -39,17 +39,28 @@ function loadDataFromFile(fileName) {
   return [];
 }
 
-// Helper function to get the Downloads directory
-function getDownloadsDirectory() {
-  const homeDir = require('os').homedir();
-  return path.join(homeDir, 'Downloads');
-}
 
-// Helper function to save personalized questions to the Downloads folder
-function savePersonalizedQuestionsToFile(fileName, data) {
-  const downloadsDir = getDownloadsDirectory();
-  const filePath = path.join(downloadsDir, fileName);
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+// Helper function to ensure personalizedQuestions.json is added to .gitignore
+function ensureGitIgnoreForPersonalizedQuestions() {
+  const workspaceDir = getWorkspaceDirectory();
+  const gitignorePath = path.join(workspaceDir, ".gitignore");
+  const personalizedQuestionsFile = "personalizedQuestions.json";
+
+  let gitignoreContent = "";
+
+  // Check if .gitignore exists
+  if (fs.existsSync(gitignorePath)) {
+    gitignoreContent = fs.readFileSync(gitignorePath, "utf-8");
+
+    // If personalizedQuestions.json is not already in .gitignore, add it
+    if (!gitignoreContent.split("\n").includes(personalizedQuestionsFile)) {
+      gitignoreContent += `\n${personalizedQuestionsFile}\n`;
+      fs.writeFileSync(gitignorePath, gitignoreContent);
+    }
+  } else {
+    // Create a .gitignore file and add personalizedQuestions.json
+    fs.writeFileSync(gitignorePath, `${personalizedQuestionsFile}\n`);
+  }
 }
 
 
@@ -61,6 +72,9 @@ function activate(context) {
   // Load persisted data
   commentsData.push(...loadDataFromFile('commentsData.json'));
   questionsData.push(...loadDataFromFile('questionsData.json'));
+
+  // Ensure personalizedQuestions.json is in .gitignore
+  ensureGitIgnoreForPersonalizedQuestions();
 
 
   // Command: Highlight code and add a comment
@@ -516,7 +530,6 @@ function activate(context) {
   });
 
 
-
   // Command: Add Personalized Question
   let addPersonalizedQuestionCommand = vscode.commands.registerCommand('extension.addPersonalizedQuestion', async () => {
     const editor = vscode.window.activeTextEditor;
@@ -544,39 +557,39 @@ function activate(context) {
 
     // HTML content for the Webview
     panel.webview.html = `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Add Personalized Question</title>
-      <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        textarea { width: 100%; height: 100px; font-size: 14px; margin-bottom: 10px; }
-        button { padding: 10px 20px; background: #007acc; color: white; border: none; cursor: pointer; }
-        button:hover { background: #005a9e; }
-      </style>
-    </head>
-    <body>
-      <h1>Add a Personalized Question</h1>
-      <p><strong>Selected Code:</strong></p>
-      <pre>${selectedText}</pre>
-      <textarea id="question" placeholder="Type your personalized question here..."></textarea>
-      <button onclick="submitPersonalizedQuestion()">Submit</button>
-      <script>
-        const vscode = acquireVsCodeApi();
-        function submitPersonalizedQuestion() {
-          const question = document.getElementById('question').value;
-          if (question.trim() === '') {
-            alert('Question cannot be empty!');
-            return;
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Add Personalized Question</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          textarea { width: 100%; height: 100px; font-size: 14px; margin-bottom: 10px; }
+          button { padding: 10px 20px; background: #007acc; color: white; border: none; cursor: pointer; }
+          button:hover { background: #005a9e; }
+        </style>
+      </head>
+      <body>
+        <h1>Add a Personalized Question</h1>
+        <p><strong>Selected Code:</strong></p>
+        <pre>${selectedText}</pre>
+        <textarea id="question" placeholder="Type your personalized question here..."></textarea>
+        <button onclick="submitPersonalizedQuestion()">Submit</button>
+        <script>
+          const vscode = acquireVsCodeApi();
+          function submitPersonalizedQuestion() {
+            const question = document.getElementById('question').value;
+            if (question.trim() === '') {
+              alert('Question cannot be empty!');
+              return;
+            }
+            vscode.postMessage({ question });
           }
-          vscode.postMessage({ question });
-        }
-      </script>
-    </body>
-    </html>
-  `;
+        </script>
+      </body>
+      </html>
+    `;
 
     // Handle messages from the Webview
     panel.webview.onDidReceiveMessage((message) => {
@@ -591,13 +604,15 @@ function activate(context) {
           highlightedCode: selectedText,
         });
 
-        savePersonalizedQuestionsToFile('personalizedQuestions.json', personalizedQuestionsData); // Save to Downloads
+        saveDataToFile('personalizedQuestions.json', personalizedQuestionsData); // Save to project base directory
         vscode.window.showInformationMessage('Personalized question added successfully!');
         panel.dispose();
       }
     });
   });
 
+
+  // Command: View Personalized Questions
   let viewPersonalizedQuestionsCommand = vscode.commands.registerCommand('extension.viewPersonalizedQuestions', async () => {
     if (personalizedQuestionsData.length === 0) {
       vscode.window.showInformationMessage('No personalized questions added yet!');
@@ -616,55 +631,52 @@ function activate(context) {
     const questionsTable = personalizedQuestionsData.map((question, index) => {
       const range = `${question.range.start.line}:${question.range.start.character} - ${question.range.end.line}:${question.range.end.character}`;
       return `
-      <tr>
-        <td>${index + 1}</td>
-        <td>${question.filePath}</td>
-        <td>${range}</td>
-        <td><pre>${question.highlightedCode || 'No highlighted code'}</pre></td>
-        <td>${question.text || 'No question'}</td>
-      </tr>
-    `;
+        <tr>
+          <td>${index + 1}</td>
+          <td>${question.filePath}</td>
+          <td>${range}</td>
+          <td><pre>${question.highlightedCode || 'No highlighted code'}</pre></td>
+          <td>${question.text || 'No question'}</td>
+        </tr>
+      `;
     }).join('');
 
     // HTML content for the Webview
     panel.webview.html = `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>View Personalized Questions</title>
-      <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #007acc; color: white; }
-        pre { background-color: rgb(0, 0, 0); padding: 5px; border-radius: 5px; }
-        button { margin-top: 20px; padding: 10px 20px; background: #007acc; color: white; border: none; cursor: pointer; }
-        button:hover { background: #005a9e; }
-      </style>
-    </head>
-    <body>
-      <h1>All Personalized Questions</h1>
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>File</th>
-            <th>Range</th>
-            <th>Highlighted Code</th>
-            <th>Question</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${questionsTable}
-        </tbody>
-      </table>
-    </body>
-    </html>
-  `;
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>View Personalized Questions</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #007acc; color: white; }
+          pre { background-color: rgb(0, 0, 0); padding: 5px; border-radius: 5px; }
+        </style>
+      </head>
+      <body>
+        <h1>All Personalized Questions</h1>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>File</th>
+              <th>Range</th>
+              <th>Highlighted Code</th>
+              <th>Question</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${questionsTable}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
   });
-
 
 
 
