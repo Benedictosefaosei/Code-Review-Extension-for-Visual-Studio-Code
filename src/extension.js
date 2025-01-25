@@ -1,4 +1,6 @@
 
+
+
 // Extension entry point
 const vscode = require('vscode');
 const fs = require('fs');
@@ -63,6 +65,247 @@ function ensureGitIgnoreForPersonalizedQuestions() {
     fs.writeFileSync(gitignorePath, `${personalizedQuestionsFile}\n`);
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+const os = require('os');
+const { v4: uuidv4 } = require('uuid'); // For generating unique UUIDs
+
+// Helper function to get the path for PersonalQuiz folder
+function getPersonalQuizFolderPath() {
+  const basePath = path.join(
+    os.homedir(),
+    'Downloads',
+    'pl-gvsu-cis500dev-master',
+    'questions',
+    'PersonalQuiz'
+  );
+
+  // Ensure the PersonalQuiz folder exists
+  if (!fs.existsSync(basePath)) {
+    fs.mkdirSync(basePath, { recursive: true });
+  }
+  return basePath;
+}
+
+// // Helper function to get the GitHub username (mocked for simplicity)
+// function getGitHubUsername() {
+//   // Replace this with real GitHub username detection logic if needed
+//   return 'your-github-username';
+// }
+
+
+
+// const child_process = require('child_process');
+
+// // Helper function to get the GitHub username
+// function getGitHubUsername() {
+//   try {
+//     // Get the workspace directory
+//     const workspaceDir = vscode.workspace.workspaceFolders
+//       ? vscode.workspace.workspaceFolders[0].uri.fsPath
+//       : null;
+
+//     if (!workspaceDir) {
+//       vscode.window.showErrorMessage('No workspace is open.');
+//       throw new Error('Workspace directory is required.');
+//     }
+
+//     // Path to the .git/config file
+//     const gitConfigPath = path.join(workspaceDir, '.git', 'config');
+
+//     if (!fs.existsSync(gitConfigPath)) {
+//       vscode.window.showErrorMessage('No Git configuration found in the workspace.');
+//       throw new Error('The project is not a Git repository.');
+//     }
+
+//     // Read the .git/config file
+//     const gitConfigContent = fs.readFileSync(gitConfigPath, 'utf-8');
+
+//     // Extract the GitHub URL
+//     const remoteMatch = gitConfigContent.match(/url\s*=\s*git@github\.com:(.+?)\/.+\.git/);
+//     if (remoteMatch && remoteMatch[1]) {
+//       return remoteMatch[1]; // This is the GitHub username
+//     }
+
+//     vscode.window.showErrorMessage('Failed to detect GitHub username from the repository.');
+//     throw new Error('GitHub username could not be determined.');
+//   } catch (error) {
+//     console.error('Error retrieving GitHub username:', error);
+//     return 'unknown-user'; // Fallback username
+//   }
+// }
+
+
+
+// const cp = require('child_process');
+
+// function getGitHubUsername() {
+//   try {
+//     // Get the workspace directory
+//     const workspaceDir = vscode.workspace.workspaceFolders
+//       ? vscode.workspace.workspaceFolders[0].uri.fsPath
+//       : null;
+
+//     if (!workspaceDir) {
+//       vscode.window.showErrorMessage('No workspace is open.');
+//       throw new Error('Workspace directory is required.');
+//     }
+
+//     // Run the git command to get the remote URL
+//     const remoteUrl = cp.execSync('git remote get-url origin', {
+//       cwd: workspaceDir,
+//       encoding: 'utf-8',
+//     }).trim();
+
+//     // Extract the GitHub username (handles both SSH and HTTPS)
+//     const match = remoteUrl.match(
+//       /(?:git@github\.com:|https:\/\/github\.com\/)([^\/]+)\/.+\.git/
+//     );
+
+//     if (match && match[1]) {
+//       return match[1]; // Return the GitHub username
+//     } else {
+//       vscode.window.showErrorMessage('Failed to detect GitHub username from the repository.');
+//       throw new Error('GitHub username could not be determined.');
+//     }
+//   } catch (error) {
+//     vscode.window.showErrorMessage('An error occurred while retrieving the GitHub username.');
+//     console.error('Error retrieving GitHub username:', error);
+//     return 'unknown-user'; // Fallback username
+//   }
+// }
+
+// module.exports = getGitHubUsername;
+
+
+
+const cp = require('child_process');
+
+function getGitHubUsername() {
+  try {
+    // Get the workspace directory
+    const workspaceDir = vscode.workspace.workspaceFolders
+      ? vscode.workspace.workspaceFolders[0].uri.fsPath
+      : null;
+
+    if (!workspaceDir) {
+      vscode.window.showErrorMessage('No workspace is open.');
+      throw new Error('Workspace directory is required.');
+    }
+
+    // Run the git command to get the remote URL
+    const remoteUrl = cp.execSync('git remote get-url origin', {
+      cwd: workspaceDir,
+      encoding: 'utf-8',
+    }).trim();
+
+    // Extract the GitHub username (handles both SSH and HTTPS)
+    const match = remoteUrl.match(
+      /(?:git@github\.com:|https:\/\/github\.com\/)([^\/]+)\/.+\.git/
+    );
+
+    if (match && match[1]) {
+      const username = match[1];
+
+      // Get the current date and time
+      const now = new Date();
+      const timestamp = now.toISOString().replace(/T/, '_').replace(/:/g, '-').split('.')[0];
+
+      // Combine timestamp and username
+      const folderName = `${timestamp}-${username}`;
+      return folderName;
+    } else {
+      vscode.window.showErrorMessage('Failed to detect GitHub username from the repository.');
+      throw new Error('GitHub username could not be determined.');
+    }
+  } catch (error) {
+    vscode.window.showErrorMessage('An error occurred while retrieving the GitHub username.');
+    console.error('Error retrieving GitHub username:', error);
+    return `unknown-user-${new Date().toISOString().replace(/T/, '_').replace(/:/g, '-').split('.')[0]}`;
+  }
+}
+
+module.exports = getGitHubUsername;
+
+
+
+
+
+
+
+
+// Helper function to create the user-specific folder
+function createUserFolder() {
+  const quizFolderPath = getPersonalQuizFolderPath();
+  const username = getGitHubUsername();
+  const userFolderPath = path.join(quizFolderPath, username);
+
+  if (!fs.existsSync(userFolderPath)) {
+    fs.mkdirSync(userFolderPath);
+  }
+  return userFolderPath;
+}
+
+// Helper function to generate an HTML file for personalized questions
+function generateQuestionHTML(questions) {
+  return questions
+    .map(
+      (question) => `
+<pl-question-panel>
+  <ol>
+    <li>${question.text}</li>
+  </ol>
+</pl-question-panel>
+
+<pl-rich-text-editor file-name="${question.text.toLowerCase().replace(/\\s+/g, '_')}.html"> </pl-rich-text-editor>
+    `
+    )
+    .join('\n');
+}
+
+// Helper function to generate the info.json file
+function generateInfoJSON(title) {
+  return {
+    uuid: uuidv4(), // Generate a unique UUID
+    title: title || 'Personalized Quiz',
+    topic: 'Custom Questions',
+    tags: ['custom', 'quiz', 'personalized'],
+    type: 'v3',
+    gradingMethod: 'Manual',
+  };
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 /**
@@ -680,6 +923,34 @@ function activate(context) {
   });
 
 
+  let generatePersonalizedQuizCommand = vscode.commands.registerCommand(
+    'extension.generatePersonalizedQuiz',
+    async () => {
+      if (personalizedQuestionsData.length === 0) {
+        vscode.window.showErrorMessage(
+          'No personalized questions available to generate the quiz!'
+        );
+        return;
+      }
+
+      const userFolderPath = createUserFolder();
+      const questionsHTMLPath = path.join(userFolderPath, 'questions.html');
+      const infoJSONPath = path.join(userFolderPath, 'info.json');
+
+      // Generate questions.html
+      const questionsHTMLContent = generateQuestionHTML(personalizedQuestionsData);
+      fs.writeFileSync(questionsHTMLPath, questionsHTMLContent);
+
+      // Generate info.json
+      const infoJSONContent = generateInfoJSON('Personalized Quiz');
+      fs.writeFileSync(infoJSONPath, JSON.stringify(infoJSONContent, null, 2));
+
+      vscode.window.showInformationMessage(
+        `Personalized quiz generated successfully in: ${userFolderPath}`
+      );
+    }
+  );
+
 
   context.subscriptions.push(
     highlightAndCommentCommand,
@@ -688,7 +959,8 @@ function activate(context) {
     answerQuestionCommand,
     viewQuestionsAndAnswersCommand,
     addPersonalizedQuestionCommand,
-    viewPersonalizedQuestionsCommand
+    viewPersonalizedQuestionsCommand,
+    generatePersonalizedQuizCommand
   );
 }
 

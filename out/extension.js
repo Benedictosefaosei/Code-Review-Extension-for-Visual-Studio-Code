@@ -14,6 +14,7 @@ const path = require('path');
 // In-memory storage for comments and questions
 const commentsData = [];
 const questionsData = [];
+let personalizedQuestionsData = [];
 // Helper function to get the workspace directory
 function getWorkspaceDirectory() {
     if (vscode.workspace.workspaceFolders) {
@@ -24,25 +25,13 @@ function getWorkspaceDirectory() {
         throw new Error("Workspace folder is required to save data.");
     }
 }
-// // Helper function to save data to a file
-// function saveDataToFile(fileName, data) {
-//   const filePath = path.join(__dirname, fileName);
-//   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-// }
+//kurmasz
 // Helper function to save data to a file in the workspace directory
 function saveDataToFile(fileName, data) {
     const workspaceDir = getWorkspaceDirectory();
     const filePath = path.join(workspaceDir, fileName);
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
-// // Helper function to load data from a file
-// function loadDataFromFile(fileName) {
-//   const filePath = path.join(__dirname, fileName);
-//   if (fs.existsSync(filePath)) {
-//     return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-//   }
-//   return [];
-// }
 // Helper function to load data from a file in the workspace directory
 function loadDataFromFile(fileName) {
     const workspaceDir = getWorkspaceDirectory();
@@ -52,6 +41,27 @@ function loadDataFromFile(fileName) {
     }
     return [];
 }
+// Helper function to ensure personalizedQuestions.json 
+// is added to .gitignore and creates .gitignore if it's not added
+function ensureGitIgnoreForPersonalizedQuestions() {
+    const workspaceDir = getWorkspaceDirectory();
+    const gitignorePath = path.join(workspaceDir, ".gitignore");
+    const personalizedQuestionsFile = "personalizedQuestions.json";
+    let gitignoreContent = "";
+    // Check if .gitignore exists
+    if (fs.existsSync(gitignorePath)) {
+        gitignoreContent = fs.readFileSync(gitignorePath, "utf-8");
+        // If personalizedQuestions.json is not already in .gitignore, add it
+        if (!gitignoreContent.split("\n").includes(personalizedQuestionsFile)) {
+            gitignoreContent += `\n${personalizedQuestionsFile}\n`;
+            fs.writeFileSync(gitignorePath, gitignoreContent);
+        }
+    }
+    else {
+        // Create a .gitignore file and add personalizedQuestions.json
+        fs.writeFileSync(gitignorePath, `${personalizedQuestionsFile}\n`);
+    }
+}
 /**
  * Activate the extension
  * @param {vscode.ExtensionContext} context
@@ -60,6 +70,8 @@ function activate(context) {
     // Load persisted data
     commentsData.push(...loadDataFromFile('commentsData.json'));
     questionsData.push(...loadDataFromFile('questionsData.json'));
+    // Ensure personalizedQuestions.json is in .gitignore
+    ensureGitIgnoreForPersonalizedQuestions();
     // Command: Highlight code and add a comment
     let highlightAndCommentCommand = vscode.commands.registerCommand('extension.highlightAndComment', () => __awaiter(this, void 0, void 0, function* () {
         const editor = vscode.window.activeTextEditor;
@@ -469,7 +481,141 @@ function activate(context) {
         </html>
         `;
     }));
-    context.subscriptions.push(highlightAndCommentCommand, viewCommentsCommand, askQuestionCommand, answerQuestionCommand, viewQuestionsAndAnswersCommand);
+    // Command: Add Personalized Question
+    let addPersonalizedQuestionCommand = vscode.commands.registerCommand('extension.addPersonalizedQuestion', () => __awaiter(this, void 0, void 0, function* () {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            vscode.window.showErrorMessage('No active editor found.');
+            return;
+        }
+        const selection = editor.selection;
+        if (selection.isEmpty) {
+            vscode.window.showErrorMessage('Please select a code snippet to add a personalized question.');
+            return;
+        }
+        const range = new vscode.Range(selection.start, selection.end);
+        const selectedText = editor.document.getText(range);
+        // Create a Webview Panel for adding a personalized question
+        const panel = vscode.window.createWebviewPanel('addPersonalizedQuestion', // Panel ID
+        'Add Personalized Question', // Panel title
+        vscode.ViewColumn.One, // Show in the active column
+        { enableScripts: true } // Allow JavaScript in the Webview
+        );
+        // HTML content for the Webview
+        panel.webview.html = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Add Personalized Question</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          textarea { width: 100%; height: 100px; font-size: 14px; margin-bottom: 10px; }
+          button { padding: 10px 20px; background: #007acc; color: white; border: none; cursor: pointer; }
+          button:hover { background: #005a9e; }
+        </style>
+      </head>
+      <body>
+        <h1>Add a Personalized Question</h1>
+        <p><strong>Selected Code:</strong></p>
+        <pre>${selectedText}</pre>
+        <textarea id="question" placeholder="Type your personalized question here..."></textarea>
+        <button onclick="submitPersonalizedQuestion()">Submit</button>
+        <script>
+          const vscode = acquireVsCodeApi();
+          function submitPersonalizedQuestion() {
+            const question = document.getElementById('question').value;
+            if (question.trim() === '') {
+              alert('Question cannot be empty!');
+              return;
+            }
+            vscode.postMessage({ question });
+          }
+        </script>
+      </body>
+      </html>
+    `;
+        // Handle messages from the Webview
+        panel.webview.onDidReceiveMessage((message) => {
+            if (message.question) {
+                personalizedQuestionsData.push({
+                    filePath: editor.document.uri.fsPath,
+                    range: {
+                        start: { line: selection.start.line, character: selection.start.character },
+                        end: { line: selection.end.line, character: selection.end.character },
+                    },
+                    text: message.question,
+                    highlightedCode: selectedText,
+                });
+                saveDataToFile('personalizedQuestions.json', personalizedQuestionsData); // Save to project base directory
+                vscode.window.showInformationMessage('Personalized question added successfully!');
+                panel.dispose();
+            }
+        });
+    }));
+    // Command: View Personalized Questions
+    let viewPersonalizedQuestionsCommand = vscode.commands.registerCommand('extension.viewPersonalizedQuestions', () => __awaiter(this, void 0, void 0, function* () {
+        if (personalizedQuestionsData.length === 0) {
+            vscode.window.showInformationMessage('No personalized questions added yet!');
+            return;
+        }
+        // Create a Webview Panel for viewing personalized questions
+        const panel = vscode.window.createWebviewPanel('viewPersonalizedQuestions', // Panel ID
+        'View Personalized Questions', // Panel title
+        vscode.ViewColumn.One, // Show in the active column
+        { enableScripts: true } // Allow JavaScript in the Webview
+        );
+        // Build a table with all the personalized questions
+        const questionsTable = personalizedQuestionsData.map((question, index) => {
+            const range = `${question.range.start.line}:${question.range.start.character} - ${question.range.end.line}:${question.range.end.character}`;
+            return `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${question.filePath}</td>
+          <td>${range}</td>
+          <td><pre>${question.highlightedCode || 'No highlighted code'}</pre></td>
+          <td>${question.text || 'No question'}</td>
+        </tr>
+      `;
+        }).join('');
+        // HTML content for the Webview
+        panel.webview.html = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>View Personalized Questions</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #007acc; color: white; }
+          pre { background-color: rgb(0, 0, 0); padding: 5px; border-radius: 5px; }
+        </style>
+      </head>
+      <body>
+        <h1>All Personalized Questions</h1>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>File</th>
+              <th>Range</th>
+              <th>Highlighted Code</th>
+              <th>Question</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${questionsTable}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
+    }));
+    context.subscriptions.push(highlightAndCommentCommand, viewCommentsCommand, askQuestionCommand, answerQuestionCommand, viewQuestionsAndAnswersCommand, addPersonalizedQuestionCommand, viewPersonalizedQuestionsCommand);
 }
 /**
  * Deactivate the extension

@@ -2,7 +2,7 @@
   "name": "code-review-extension",
   "displayName": "Code Review Extension",
   "description": "A code review extension for Instructors, Technical leads, and senior developers to collaborate with fellow developers on any project.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "publisher": "BenedictOseiSefa",
   "readme": "README.md",
   "icon": "sefa-logo.png",
@@ -48,6 +48,10 @@
       {
         "command": "extension.viewPersonalizedQuestions",
         "title": "View Personalized Questions"
+      },
+      {
+        "command": "extension.generatePersonalizedQuiz",
+        "title": "Generate Personalized Quiz"
       }
     ],
     "menus": {
@@ -69,6 +73,10 @@
     "vscode:prepublish": "npx tsc -p ./"
   },
   "devDependencies": {
-    "vscode": "^1.80.0"
+    "@types/uuid": "^10.0.0",
+    "@types/vscode": "^1.79.0"
+  },
+  "dependencies": {
+    "uuid": "^11.0.5"
   }
 }
