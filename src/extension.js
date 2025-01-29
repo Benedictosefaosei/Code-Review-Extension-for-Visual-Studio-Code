@@ -934,7 +934,7 @@ function activate(context) {
       }
 
       const userFolderPath = createUserFolder();
-      const questionsHTMLPath = path.join(userFolderPath, 'questions.html');
+      const questionsHTMLPath = path.join(userFolderPath, 'question.html');
       const infoJSONPath = path.join(userFolderPath, 'info.json');
 
       // Generate questions.html
