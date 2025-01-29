@@ -156,7 +156,8 @@ function generateQuestionHTML(questions) {
   </ol>
 </pl-question-panel>
 
-<pre><code>${question.highlightedCode || 'No code snippet available'}</code></pre>
+
+<pl-code language="python">${question.highlightedCode || 'No code snippet available'}</pl-code>
 
 <pl-rich-text-editor file-name="${question.text.toLowerCase().replace(/\\s+/g, '_')}.html"> </pl-rich-text-editor>
     `
