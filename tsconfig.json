@@ -3,6 +3,10 @@
         "allowJs": true,
         "outDir": "out",
         "target": "ES6",
+        "lib": [
+            "es2018",
+            "dom"
+        ],
         "module": "commonjs"
     },
     "include": [

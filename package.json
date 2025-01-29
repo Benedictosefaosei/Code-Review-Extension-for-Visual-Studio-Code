@@ -2,7 +2,7 @@
   "name": "code-review-extension",
   "displayName": "Code Review Extension",
   "description": "A code review extension for Instructors, Technical leads, and senior developers to collaborate with fellow developers on any project.",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "publisher": "BenedictOseiSefa",
   "readme": "README.md",
   "icon": "sefa-logo.png",
