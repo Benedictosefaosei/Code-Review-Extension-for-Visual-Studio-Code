@@ -2,7 +2,7 @@
   "name": "code-review-extension",
   "displayName": "Code Review Extension",
   "description": "A code review extension for Instructors, Technical leads, and senior developers to collaborate with fellow developers on any project.",
-  "version": "1.0.6",
+  "version": "1.0.9",
   "publisher": "BenedictOseiSefa",
   "readme": "README.md",
   "icon": "sefa-logo.png",
@@ -23,35 +23,35 @@
     "commands": [
       {
         "command": "extension.highlightAndComment",
-        "title": "Highlight and Add Comment"
+        "title": "Code Review: Add Comment"
       },
       {
         "command": "extension.askQuestion",
-        "title": "Ask Question"
+        "title": "Code Review: Ask Question"
       },
       {
         "command": "extension.answerQuestion",
-        "title": "Answer Question"
+        "title": "Code Review: Answer Question"
       },
       {
         "command": "extension.viewComments",
-        "title": "View All Comments"
+        "title": "Code Review: View Comments"
       },
       {
         "command": "extension.viewQuestionsAndAnswers",
-        "title": "View Questions and Answers"
+        "title": "Code Review: View Questions and Answers"
       },
       {
         "command": "extension.addPersonalizedQuestion",
-        "title": "Add Personalized Question"
+        "title": "Code Review: Add Personalized Question"
       },
       {
         "command": "extension.viewPersonalizedQuestions",
-        "title": "View Personalized Questions"
+        "title": "Code Review: View Personalized Questions"
       },
       {
         "command": "extension.generatePersonalizedQuiz",
-        "title": "Generate Personalized Quiz"
+        "title": "Code Review: Generate Personalized Quiz"
       }
     ],
     "menus": {
