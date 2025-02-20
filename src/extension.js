@@ -67,22 +67,6 @@ function ensureGitIgnoreForPersonalizedQuestions() {
 const os = require('os');
 const { v4: uuidv4 } = require('uuid'); // For generating unique UUIDs
 
-// // Helper function to get the path for PersonalQuiz folder
-// function getPersonalQuizFolderPath() {
-//   const basePath = path.join(
-//     os.homedir(),
-//     'Downloads',
-//     'pl-gvsu-cis500dev',
-//     'questions',
-//     'PersonalQuiz'
-//   );
-
-//   // Ensure the PersonalQuiz folder exists
-//   if (!fs.existsSync(basePath)) {
-//     fs.mkdirSync(basePath, { recursive: true });
-//   }
-//   return basePath;
-// }
 
 // Helper function to get the path for the PersonalQuiz folder
 async function getPersonalQuizFolderPath() {
@@ -694,7 +678,6 @@ function activate(context) {
   });
 
 
-  // Command: Add Personalized Question
   let addPersonalizedQuestionCommand = vscode.commands.registerCommand('extension.addPersonalizedQuestion', async () => {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
@@ -709,7 +692,7 @@ function activate(context) {
     }
 
     const range = new vscode.Range(selection.start, selection.end);
-    const selectedText = editor.document.getText(range);
+    let selectedText = editor.document.getText(range);
 
     // Create a Webview Panel for adding a personalized question
     const panel = vscode.window.createWebviewPanel(
@@ -729,26 +712,50 @@ function activate(context) {
         <title>Add Personalized Question</title>
         <style>
           body { font-family: Arial, sans-serif; margin: 20px; }
-          textarea { width: 100%; height: 100px; font-size: 14px; margin-bottom: 10px; }
-          button { padding: 10px 20px; background: #007acc; color: white; border: none; cursor: pointer; }
+          textarea { width: 100%; font-size: 14px; margin-bottom: 10px; display: block; }
+          button { padding: 10px 20px; background: #007acc; color: white; border: none; cursor: pointer; margin-right: 10px; }
           button:hover { background: #005a9e; }
+          .code-area { width: 100%; height: 120px; font-family: monospace; background: #f4f4f4; padding: 10px; border-radius: 5px; }
         </style>
       </head>
       <body>
         <h1>Add a Personalized Question</h1>
-        <p><strong>Selected Code:</strong></p>
-        <pre>${selectedText}</pre>
-        <textarea id="question" placeholder="Type your personalized question here..."></textarea>
+
+        <p><strong>Edit Highlighted Code:</strong></p>
+        <textarea id="codeBlock" class="code-area">${selectedText}</textarea>
+        <button onclick="copyAndPasteCode()">Copy & Paste Code</button>
+        <button onclick="saveCode()">Save Code</button>
+        
+        <p><strong>Add Your Question:</strong></p>
+        <textarea id="question" placeholder="Type your personalized question here..." rows="4"></textarea>
+        
         <button onclick="submitPersonalizedQuestion()">Submit</button>
+
         <script>
           const vscode = acquireVsCodeApi();
+
+          function copyAndPasteCode() {
+            const codeText = document.getElementById('codeBlock').value;
+            navigator.clipboard.writeText(codeText).then(() => {
+                document.getElementById('question').value = codeText; // Automatically paste it
+            });
+          }
+
+          function saveCode() {
+            const updatedCode = document.getElementById('codeBlock').value;
+            vscode.postMessage({ updatedCode });
+          }
+
           function submitPersonalizedQuestion() {
             const question = document.getElementById('question').value;
+            const editedCode = document.getElementById('codeBlock').value;
+            
             if (question.trim() === '') {
               alert('Question cannot be empty!');
               return;
             }
-            vscode.postMessage({ question });
+
+            vscode.postMessage({ question, editedCode });
           }
         </script>
       </body>
@@ -757,7 +764,12 @@ function activate(context) {
 
     // Handle messages from the Webview
     panel.webview.onDidReceiveMessage((message) => {
-      if (message.question) {
+      if (message.editedCode) {
+        vscode.window.showInformationMessage('Code updated successfully!');
+        selectedText = message.editedCode; // Keep updated code in memory
+      }
+
+      if (message.question && message.editedCode) {
         personalizedQuestionsData.push({
           filePath: editor.document.uri.fsPath,
           range: {
@@ -765,7 +777,7 @@ function activate(context) {
             end: { line: selection.end.line, character: selection.end.character },
           },
           text: message.question,
-          highlightedCode: selectedText,
+          highlightedCode: message.editedCode,
         });
 
         saveDataToFile('personalizedQuestions.json', personalizedQuestionsData); // Save to project base directory
@@ -778,6 +790,7 @@ function activate(context) {
 
 
 
+
   let viewPersonalizedQuestionsCommand = vscode.commands.registerCommand('extension.viewPersonalizedQuestions', async () => {
     if (personalizedQuestionsData.length === 0) {
       vscode.window.showInformationMessage('No personalized questions added yet!');
@@ -786,29 +799,33 @@ function activate(context) {
 
     // Create a Webview Panel for viewing personalized questions
     const panel = vscode.window.createWebviewPanel(
-      'viewPersonalizedQuestions', // Panel ID
-      'View Personalized Questions', // Panel title
-      vscode.ViewColumn.One, // Show in the active column
-      { enableScripts: true } // Allow JavaScript in the Webview
+      'viewPersonalizedQuestions',
+      'View Personalized Questions',
+      vscode.ViewColumn.One,
+      { enableScripts: true }
     );
 
-    // Build a table with all the personalized questions
+    // Build a table with editable fields and action buttons
     const questionsTable = personalizedQuestionsData.map((question, index) => {
       const range = `${question.range.start.line}:${question.range.start.character} - ${question.range.end.line}:${question.range.end.character}`;
 
-      // Extract only the last two parts of the file path for display
+      // Extract only the last three parts of the file path for display
       const filePathParts = question.filePath.split('/');
       const shortenedFilePath = filePathParts.length > 2
         ? `.../${filePathParts.slice(-3).join('/')}`
         : question.filePath;
 
       return `
-        <tr>
+        <tr id="row-${index}">
             <td>${index + 1}</td>
             <td title="${question.filePath}">${shortenedFilePath}</td>
             <td>${range}</td>
-            <td><pre>${question.highlightedCode || 'No highlighted code'}</pre></td>
-            <td>${question.text || 'No question'}</td>
+            <td><textarea class="code-area" id="code-${index}">${question.highlightedCode || 'No highlighted code'}</textarea></td>
+            <td><textarea class="question-area" id="question-${index}">${question.text || 'No question'}</textarea></td>
+            <td>
+                <button onclick="saveChanges(${index})">Save Changes</button>
+                <button onclick="deleteRow(${index})" style="background-color: red; color: white;">Delete</button>
+            </td>
         </tr>
         `;
     }).join('');
@@ -824,9 +841,12 @@ function activate(context) {
             <style>
                 body { font-family: Arial, sans-serif; margin: 20px; }
                 table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
                 th { background-color: #007acc; color: white; }
-                pre { background-color: rgb(0, 0, 0); padding: 5px; border-radius: 5px; color: white; }
+                textarea { width: 100%; height: 100px; font-size: 14px; border: 1px solid #ccc; padding: 5px; }
+                .code-area { background-color: rgb(0, 0, 0); color: white; font-family: monospace; }
+                .question-area { background-color: #f4f4f4; color: black; font-family: sans-serif; }
+                button { padding: 5px 10px; margin: 5px; cursor: pointer; }
             </style>
         </head>
         <body>
@@ -839,557 +859,55 @@ function activate(context) {
                         <th>Range</th>
                         <th>Highlighted Code</th>
                         <th>Question</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${questionsTable}
                 </tbody>
             </table>
+
+            <script>
+                const vscode = acquireVsCodeApi();
+
+                function saveChanges(index) {
+                    const updatedCode = document.getElementById('code-' + index).value;
+                    const updatedQuestion = document.getElementById('question-' + index).value;
+                    
+                    vscode.postMessage({ type: 'saveChanges', index, updatedCode, updatedQuestion });
+                }
+
+                function deleteRow(index) {
+                    vscode.postMessage({ type: 'deleteRow', index });
+                }
+            </script>
         </body>
         </html>
     `;
+
+    // Handle messages from the Webview
+    panel.webview.onDidReceiveMessage((message) => {
+      if (message.type === 'saveChanges') {
+        // Update the data in memory
+        personalizedQuestionsData[message.index].highlightedCode = message.updatedCode;
+        personalizedQuestionsData[message.index].text = message.updatedQuestion;
+
+        saveDataToFile('personalizedQuestions.json', personalizedQuestionsData);
+        vscode.window.showInformationMessage('Changes saved successfully!');
+      }
+
+      if (message.type === 'deleteRow') {
+        // Remove the selected row
+        personalizedQuestionsData.splice(message.index, 1);
+        saveDataToFile('personalizedQuestions.json', personalizedQuestionsData);
+        vscode.window.showInformationMessage('Row deleted successfully!');
+
+        // Refresh the panel
+        panel.dispose();
+        vscode.commands.executeCommand('extension.viewPersonalizedQuestions');
+      }
+    });
   });
-
-
-
-  // let generatePersonalizedQuizCommand = vscode.commands.registerCommand(
-  //   'extension.generatePersonalizedQuiz',
-  //   async () => {
-  //     if (personalizedQuestionsData.length === 0) {
-  //       vscode.window.showErrorMessage(
-  //         'No personalized questions available to generate the quiz!'
-  //       );
-  //       return;
-  //     }
-
-  //     const userFolderPath = await createUserFolder();
-  //     const questionsHTMLPath = path.join(userFolderPath, 'question.html');
-  //     const infoJSONPath = path.join(userFolderPath, 'info.json');
-
-  //     // Generate questions.html
-  //     const questionsHTMLContent = generateQuestionHTML(personalizedQuestionsData);
-  //     fs.writeFileSync(questionsHTMLPath, questionsHTMLContent);
-
-  //     // Generate info.json
-  //     const infoJSONContent = generateInfoJSON('Personalized Quiz');
-  //     fs.writeFileSync(infoJSONPath, JSON.stringify(infoJSONContent, null, 2));
-
-  //     vscode.window.showInformationMessage(
-  //       `Personalized quiz generated successfully in: ${userFolderPath}`
-  //     );
-  //   }
-  // );
-
-
-  // let generatePersonalizedQuizCommand = vscode.commands.registerCommand(
-  //   'extension.generatePersonalizedQuiz',
-  //   async () => {
-  //     if (personalizedQuestionsData.length === 0) {
-  //       vscode.window.showErrorMessage(
-  //         'No personalized questions available to generate the quiz!'
-  //       );
-  //       return;
-  //     }
-
-  //     // Create the user folder
-  //     const userFolderPath = await createUserFolder();
-  //     const questionsHTMLPath = path.join(userFolderPath, 'question.html');
-  //     const infoJSONPath = path.join(userFolderPath, 'info.json');
-
-  //     // Generate questions.html
-  //     const questionsHTMLContent = generateQuestionHTML(personalizedQuestionsData);
-  //     fs.writeFileSync(questionsHTMLPath, questionsHTMLContent);
-
-  //     // Generate info.json
-  //     const infoJSONContent = generateInfoJSON('Personalized Quiz');
-  //     fs.writeFileSync(infoJSONPath, JSON.stringify(infoJSONContent, null, 2));
-
-  //     // Show success message for quiz generation
-  //     vscode.window.showInformationMessage(
-  //       `Personalized quiz generated successfully in: ${userFolderPath}`
-  //     );
-
-  //     // ========================
-  //     // Step 2: Generate infoAssessment.json
-  //     // ========================
-
-  //     // Prompt the user to select the assessment folder
-  //     const assessmentFolderUri = await vscode.window.showOpenDialog({
-  //       canSelectFolders: true,
-  //       canSelectFiles: false,
-  //       canSelectMany: false,
-  //       openLabel: 'Select Assessment Folder'
-  //     });
-
-  //     // If the user cancels the selection
-  //     if (!assessmentFolderUri || assessmentFolderUri.length === 0) {
-  //       vscode.window.showErrorMessage('No assessment folder selected.');
-  //       return;
-  //     }
-
-  //     // Path to the selected assessment folder
-  //     const assessmentFolderPath = assessmentFolderUri[0].fsPath;
-
-  //     // Create the "quiz4" folder inside the assessment folder
-  //     const quiz4FolderPath = path.join(assessmentFolderPath, 'quiz4');
-  //     if (!fs.existsSync(quiz4FolderPath)) {
-  //       fs.mkdirSync(quiz4FolderPath, { recursive: true });
-  //     }
-
-  //     // Generate the infoAssessment.json file path
-  //     const infoAssessmentPath = path.join(quiz4FolderPath, 'infoAssessment.json');
-
-  //     // Define the content of infoAssessment.json
-  //     const infoAssessmentContent = {
-  //       uuid: uuidv4(), // Generate a unique UUID
-  //       type: "Homework",
-  //       title: "Practice Quiz 1",
-  //       set: "Practice Quiz",
-  //       number: "1",
-  //       shuffleQuestions: true,
-  //       allowAccess: [
-  //         {
-  //           mode: "Public",
-  //           uids: ["finnejaz@mail.gvsu.edu"],
-  //           credit: 100,
-  //           timeLimitMin: 30,
-  //           startDate: "2023-02-09T11:15:00",
-  //           endDate: "2023-02-09T12:30:40"
-  //         },
-  //         {
-  //           role: "Student",
-  //           mode: "Public",
-  //           credit: 100,
-  //           timeLimitMin: 55,
-  //           startDate: "2025-01-08T14:35:00",
-  //           endDate: "2025-02-08T14:56:00"
-  //         }
-  //       ],
-  //       zones: [
-  //         {
-  //           questions: [
-  //             {
-  //               id: "key_ideas_sample",
-  //               points: 10
-  //             }
-  //           ]
-  //         }
-  //       ]
-  //     };
-
-  //     // Write the JSON content to the file
-  //     fs.writeFileSync(infoAssessmentPath, JSON.stringify(infoAssessmentContent, null, 2));
-
-  //     // Show success message for infoAssessment.json
-  //     vscode.window.showInformationMessage(
-  //       `infoAssessment.json successfully created in: ${quiz4FolderPath}`
-  //     );
-  //   }
-  // );
-
-
-  // let generatePersonalizedQuizCommand = vscode.commands.registerCommand(
-  //   'extension.generatePersonalizedQuiz',
-  //   async () => {
-  //     if (personalizedQuestionsData.length === 0) {
-  //       vscode.window.showErrorMessage(
-  //         'No personalized questions available to generate the quiz!'
-  //       );
-  //       return;
-  //     }
-
-  //     // Create the user folder
-  //     const userFolderPath = await createUserFolder();
-  //     const questionsHTMLPath = path.join(userFolderPath, 'question.html');
-  //     const infoJSONPath = path.join(userFolderPath, 'info.json');
-
-  //     // Generate questions.html
-  //     const questionsHTMLContent = generateQuestionHTML(personalizedQuestionsData);
-  //     fs.writeFileSync(questionsHTMLPath, questionsHTMLContent);
-
-  //     // Generate info.json
-  //     const infoJSONContent = generateInfoJSON('Personalized Quiz');
-  //     fs.writeFileSync(infoJSONPath, JSON.stringify(infoJSONContent, null, 2));
-
-  //     // Show success message for quiz generation
-  //     vscode.window.showInformationMessage(
-  //       `Personalized quiz generated successfully in: ${userFolderPath}`
-  //     );
-
-  //     // ========================
-  //     // Step 2: Generate infoAssessment.json
-  //     // ========================
-
-  //     // Prompt the user to select the assessment folder
-  //     const assessmentFolderUri = await vscode.window.showOpenDialog({
-  //       canSelectFolders: true,
-  //       canSelectFiles: false,
-  //       canSelectMany: false,
-  //       openLabel: 'Select Assessment Folder'
-  //     });
-
-  //     // If the user cancels the selection
-  //     if (!assessmentFolderUri || assessmentFolderUri.length === 0) {
-  //       vscode.window.showErrorMessage('No assessment folder selected.');
-  //       return;
-  //     }
-
-  //     // Path to the selected assessment folder
-  //     const assessmentFolderPath = assessmentFolderUri[0].fsPath;
-
-  //     // Extract the folder name from the workspace
-  //     const workspacePath = vscode.workspace.workspaceFolders
-  //       ? vscode.workspace.workspaceFolders[0].uri.fsPath
-  //       : null;
-
-  //     if (!workspacePath) {
-  //       vscode.window.showErrorMessage('No workspace folder detected.');
-  //       return;
-  //     }
-
-  //     // Get all files in the workspace
-  //     const allFiles = await vscode.workspace.findFiles('**/*');
-
-  //     if (allFiles.length === 0) {
-  //       vscode.window.showErrorMessage('No files found in the workspace.');
-  //       return;
-  //     }
-
-  //     // Find the first relevant file in the workspace
-  //     const firstFilePath = allFiles[0].fsPath;
-
-  //     // Extract the correct folder name (student name)
-  //     const pathParts = firstFilePath.split(path.sep);
-  //     let studentFolderName = 'unknown_user';
-
-  //     for (let i = pathParts.length - 1; i >= 0; i--) {
-  //       if (pathParts[i] === 'python' && i > 0) {
-  //         studentFolderName = pathParts[i - 1]; // The folder before "python"
-  //         break;
-  //       }
-  //     }
-
-  //     if (studentFolderName === 'unknown_user') {
-  //       // If no "python" folder is found, use the immediate parent folder
-  //       studentFolderName = pathParts[pathParts.length - 2];
-  //     }
-
-  //     // Create the folder using the student's name
-  //     const studentFolderPath = path.join(assessmentFolderPath, studentFolderName);
-  //     if (!fs.existsSync(studentFolderPath)) {
-  //       fs.mkdirSync(studentFolderPath, { recursive: true });
-  //     }
-
-  //     // Generate the infoAssessment.json file path
-  //     const infoAssessmentPath = path.join(studentFolderPath, 'infoAssessment.json');
-
-  //     // Define the content of infoAssessment.json, replacing "finnejaz@mail.gvsu.edu" with studentFolderName
-  //     const infoAssessmentContent = {
-  //       uuid: uuidv4(), // Generate a unique UUID
-  //       type: "Homework",
-  //       title: "Practice Quiz 1",
-  //       set: "Practice Quiz",
-  //       number: "1",
-  //       shuffleQuestions: true,
-  //       allowAccess: [
-  //         {
-  //           mode: "Public",
-  //           uids: [studentFolderName], // Replace with extracted folder name
-  //           credit: 100,
-  //           timeLimitMin: 30,
-  //           startDate: "2023-02-09T11:15:00",
-  //           endDate: "2023-02-09T12:30:40"
-  //         },
-  //         {
-  //           role: "Student",
-  //           mode: "Public",
-  //           credit: 100,
-  //           timeLimitMin: 55,
-  //           startDate: "2025-01-08T14:35:00",
-  //           endDate: "2025-02-08T14:56:00"
-  //         }
-  //       ],
-  //       zones: [
-  //         {
-  //           questions: [
-  //             {
-  //               id: "key_ideas_sample",
-  //               points: 10
-  //             }
-  //           ]
-  //         }
-  //       ]
-  //     };
-
-  //     // Write the JSON content to the file
-  //     fs.writeFileSync(infoAssessmentPath, JSON.stringify(infoAssessmentContent, null, 2));
-
-  //     // Show success message for infoAssessment.json
-  //     vscode.window.showInformationMessage(
-  //       `infoAssessment.json successfully created in: ${studentFolderPath}`
-  //     );
-  //   }
-  // );
-
-
-
-  // let generatePersonalizedQuizCommand = vscode.commands.registerCommand(
-  //   'extension.generatePersonalizedQuiz',
-  //   async () => {
-  //     if (personalizedQuestionsData.length === 0) {
-  //       vscode.window.showErrorMessage(
-  //         'No personalized questions available to generate the quiz!'
-  //       );
-  //       return;
-  //     }
-
-  //     // Get the active file path (where the user triggered the command)
-  //     const activeEditor = vscode.window.activeTextEditor;
-  //     if (!activeEditor) {
-  //       vscode.window.showErrorMessage('No active file found.');
-  //       return;
-  //     }
-  //     const filePath = activeEditor.document.uri.fsPath;
-
-  //     // Extract the correct student folder name
-  //     const pathParts = filePath.split(path.sep);
-  //     let studentFolderName = 'unknown_user';
-
-  //     // Try to find "python" in the path
-  //     const pythonIndex = pathParts.indexOf('python');
-  //     if (pythonIndex > 0) {
-  //       studentFolderName = pathParts[pythonIndex - 1]; // Folder before "python"
-  //     } else {
-  //       // If "python" folder doesn't exist, take the immediate parent folder
-  //       studentFolderName = pathParts[pathParts.length - 2];
-  //     }
-
-  //     // Prompt the user to select the assessment folder
-  //     const assessmentFolderUri = await vscode.window.showOpenDialog({
-  //       canSelectFolders: true,
-  //       canSelectFiles: false,
-  //       canSelectMany: false,
-  //       openLabel: 'Select Assessment Folder'
-  //     });
-
-  //     if (!assessmentFolderUri || assessmentFolderUri.length === 0) {
-  //       vscode.window.showErrorMessage('No assessment folder selected.');
-  //       return;
-  //     }
-
-  //     // Path to the selected assessment folder
-  //     const assessmentFolderPath = assessmentFolderUri[0].fsPath;
-
-  //     // Create a folder using the student's name
-  //     const studentFolderPath = path.join(assessmentFolderPath, studentFolderName);
-  //     if (!fs.existsSync(studentFolderPath)) {
-  //       fs.mkdirSync(studentFolderPath, { recursive: true });
-  //     }
-
-  //     // Generate the infoAssessment.json file path
-  //     const infoAssessmentPath = path.join(studentFolderPath, 'infoAssessment.json');
-
-  //     // Define the content of infoAssessment.json, replacing "finnejaz@mail.gvsu.edu" with studentFolderName
-  //     const infoAssessmentContent = {
-  //       uuid: uuidv4(), // Generate a unique UUID
-  //       type: "Homework",
-  //       title: "Practice Quiz 1",
-  //       set: "Practice Quiz",
-  //       number: "1",
-  //       shuffleQuestions: true,
-  //       allowAccess: [
-  //         {
-  //           mode: "Public",
-  //           uids: [studentFolderName], // Replace with extracted folder name
-  //           credit: 100,
-  //           timeLimitMin: 30,
-  //           startDate: "2023-02-09T11:15:00",
-  //           endDate: "2023-02-09T12:30:40"
-  //         },
-  //         {
-  //           role: "Student",
-  //           mode: "Public",
-  //           credit: 100,
-  //           timeLimitMin: 55,
-  //           startDate: "2025-01-08T14:35:00",
-  //           endDate: "2025-02-08T14:56:00"
-  //         }
-  //       ],
-  //       zones: [
-  //         {
-  //           questions: [
-  //             {
-  //               id: "key_ideas_sample",
-  //               points: 10
-  //             }
-  //           ]
-  //         }
-  //       ]
-  //     };
-
-  //     // Write the JSON content to the file
-  //     fs.writeFileSync(infoAssessmentPath, JSON.stringify(infoAssessmentContent, null, 2));
-
-  //     // Show success message for infoAssessment.json
-  //     vscode.window.showInformationMessage(
-  //       `infoAssessment.json successfully created in: ${studentFolderPath}`
-  //     );
-  //   }
-  // );
-
-
-  // let generatePersonalizedQuizCommand = vscode.commands.registerCommand(
-  //   'extension.generatePersonalizedQuiz',
-  //   async () => {
-  //     if (personalizedQuestionsData.length === 0) {
-  //       vscode.window.showErrorMessage(
-  //         'No personalized questions available to generate the quiz!'
-  //       );
-  //       return;
-  //     }
-
-  //     // Get the active file path (where the user triggered the command)
-  //     const activeEditor = vscode.window.activeTextEditor;
-  //     if (!activeEditor) {
-  //       vscode.window.showErrorMessage('No active file found.');
-  //       return;
-  //     }
-  //     const filePath = activeEditor.document.uri.fsPath;
-
-  //     // Extract the correct student folder name
-  //     const pathParts = filePath.split(path.sep);
-  //     let studentFolderName = 'unknown_user';
-
-  //     // Try to find "python" in the path
-  //     const pythonIndex = pathParts.indexOf('python');
-  //     if (pythonIndex > 0) {
-  //       studentFolderName = pathParts[pythonIndex - 1]; // Folder before "python"
-  //     } else {
-  //       // If "python" folder doesn't exist, take the immediate parent folder
-  //       studentFolderName = pathParts[pathParts.length - 2];
-  //     }
-
-  //     /*** Select Questions Folder ***/
-  //     const questionsFolderUri = await vscode.window.showOpenDialog({
-  //       canSelectFolders: true,
-  //       canSelectFiles: false,
-  //       canSelectMany: false,
-  //       openLabel: 'Select Questions Folder'
-  //     });
-
-  //     if (!questionsFolderUri || questionsFolderUri.length === 0) {
-  //       vscode.window.showErrorMessage('No questions folder selected.');
-  //       return;
-  //     }
-
-  //     const questionsFolderPath = questionsFolderUri[0].fsPath;
-  //     const personalQuizFolderPath = path.join(questionsFolderPath, 'PersonalQuiz');
-
-  //     // Create PersonalQuiz folder if it doesn't exist
-  //     if (!fs.existsSync(personalQuizFolderPath)) {
-  //       fs.mkdirSync(personalQuizFolderPath, { recursive: true });
-  //     }
-
-  //     // Create student folder inside PersonalQuiz
-  //     const studentQuizFolderPath = path.join(personalQuizFolderPath, studentFolderName);
-  //     if (!fs.existsSync(studentQuizFolderPath)) {
-  //       fs.mkdirSync(studentQuizFolderPath, { recursive: true });
-  //     }
-
-  //     // Paths for question.html and info.json
-  //     const questionsHTMLPath = path.join(studentQuizFolderPath, 'question.html');
-  //     const infoJSONPath = path.join(studentQuizFolderPath, 'info.json');
-
-  //     // Generate question.html
-  //     const questionsHTMLContent = generateQuestionHTML(personalizedQuestionsData);
-  //     fs.writeFileSync(questionsHTMLPath, questionsHTMLContent);
-
-  //     // Generate info.json
-  //     const infoJSONContent = generateInfoJSON('Personalized Quiz');
-  //     fs.writeFileSync(infoJSONPath, JSON.stringify(infoJSONContent, null, 2));
-
-  //     /*** Select Assessment Folder ***/
-  //     const assessmentFolderUri = await vscode.window.showOpenDialog({
-  //       canSelectFolders: true,
-  //       canSelectFiles: false,
-  //       canSelectMany: false,
-  //       openLabel: 'Select Assessment Folder'
-  //     });
-
-  //     if (!assessmentFolderUri || assessmentFolderUri.length === 0) {
-  //       vscode.window.showErrorMessage('No assessment folder selected.');
-  //       return;
-  //     }
-
-  //     const assessmentFolderPath = assessmentFolderUri[0].fsPath;
-
-  //     // Create a folder using the student's name inside the assessment folder
-  //     const studentAssessmentFolderPath = path.join(assessmentFolderPath, studentFolderName);
-  //     if (!fs.existsSync(studentAssessmentFolderPath)) {
-  //       fs.mkdirSync(studentAssessmentFolderPath, { recursive: true });
-  //     }
-
-  //     // Generate the infoAssessment.json file path
-  //     const infoAssessmentPath = path.join(studentAssessmentFolderPath, 'infoAssessment.json');
-
-  //     // Define the content of infoAssessment.json, replacing "finnejaz@mail.gvsu.edu" with studentFolderName
-  //     const infoAssessmentContent = {
-  //       uuid: uuidv4(), // Generate a unique UUID
-  //       type: "Homework",
-  //       title: "Practice Quiz 1",
-  //       set: "Practice Quiz",
-  //       number: "1",
-  //       shuffleQuestions: true,
-  //       allowAccess: [
-  //         {
-  //           mode: "Public",
-  //           uids: [studentFolderName], // Replace with extracted folder name
-  //           credit: 100,
-  //           timeLimitMin: 30,
-  //           startDate: "2023-02-09T11:15:00",
-  //           endDate: "2023-02-09T12:30:40"
-  //         },
-  //         {
-  //           role: "Student",
-  //           mode: "Public",
-  //           credit: 100,
-  //           timeLimitMin: 55,
-  //           startDate: "2025-01-08T14:35:00",
-  //           endDate: "2025-02-08T14:56:00"
-  //         }
-  //       ],
-  //       zones: [
-  //         {
-  //           questions: [
-  //             {
-  //               id: "key_ideas_sample",
-  //               points: 10
-  //             }
-  //           ]
-  //         }
-  //       ]
-  //     };
-
-  //     // Write the JSON content to the file
-  //     fs.writeFileSync(infoAssessmentPath, JSON.stringify(infoAssessmentContent, null, 2));
-
-  //     // Show success messages
-  //     vscode.window.showInformationMessage(
-  //       `Personalized quiz generated successfully in: ${studentQuizFolderPath}`
-  //     );
-  //     vscode.window.showInformationMessage(
-  //       `infoAssessment.json successfully created in: ${studentAssessmentFolderPath}`
-  //     );
-  //   }
-  // );
-
-
-
-
-  // const vscode = require('vscode');
-  // const fs = require('fs');
-  // const path = require('path');
-  // const { v4: uuidv4 } = require('uuid'); // Ensure uuid is installed
 
   let generatePersonalizedQuizCommand = vscode.commands.registerCommand(
     'extension.generatePersonalizedQuiz',
