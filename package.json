@@ -23,35 +23,35 @@
     "commands": [
       {
         "command": "extension.highlightAndComment",
-        "title": "Code Review: Add Comment"
+        "title": "CQLC: Add Comment"
       },
       {
         "command": "extension.askQuestion",
-        "title": "Code Review: Ask Question"
+        "title": "CQLC: Ask Question"
       },
       {
         "command": "extension.answerQuestion",
-        "title": "Code Review: Answer Question"
+        "title": "CQLC: Answer Question"
       },
       {
         "command": "extension.viewComments",
-        "title": "Code Review: View Comments"
+        "title": "CQLC: View Comments"
       },
       {
         "command": "extension.viewQuestionsAndAnswers",
-        "title": "Code Review: View Questions and Answers"
+        "title": "CQLC: View Questions and Answers"
       },
       {
         "command": "extension.addPersonalizedQuestion",
-        "title": "Code Review: Add Personalized Question"
+        "title": "CQLC: Add Personalized Question"
       },
       {
         "command": "extension.viewPersonalizedQuestions",
-        "title": "Code Review: View Personalized Questions"
+        "title": "CQLC: View Personalized Questions"
       },
       {
         "command": "extension.generatePersonalizedQuiz",
-        "title": "Code Review: Generate Personalized Quiz"
+        "title": "CQLC: Generate Personalized Quiz"
       }
     ],
     "menus": {
