@@ -1,0 +1,16 @@
+{
+    "title": "Custom Quiz over Homework 9",
+    "topic": "loops",
+    "folder": "CustomQuiz_HW9",
+    "pl_root": "/Users/benedictoseisefa/Desktop/pl-gvsu-cis500dev-master",
+    "pl_question_root": "questions/PersonalQuiz",
+    "pl_assessment_root": "courseInstances/TemplateCourseInstance/assessments",
+    "set": "Custom Quiz",
+    "number": "1",
+    "points_per_question": 10,
+    "startDate": "2023-02-09T11:15:00",
+    "endDate": "2023-02-09T12:30:40",
+    "timeLimitMin": 30,
+    "daysForGrading": 7,
+    "reviewEndDate": "2023-05-01T23:59:59"
+}

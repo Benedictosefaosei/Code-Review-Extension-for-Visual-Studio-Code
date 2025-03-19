@@ -23,35 +23,35 @@
     "commands": [
       {
         "command": "extension.highlightAndComment",
-        "title": "CQLC: Add Comment"
+        "title": "PLQLC: Add Comment"
       },
       {
         "command": "extension.askQuestion",
-        "title": "CQLC: Ask Question"
+        "title": "PLQLC: Ask Question"
       },
       {
         "command": "extension.answerQuestion",
-        "title": "CQLC: Answer Question"
+        "title": "PLQLC: Answer Question"
       },
       {
         "command": "extension.viewComments",
-        "title": "CQLC: View Comments"
+        "title": "PLQLC: View Comments"
       },
       {
         "command": "extension.viewQuestionsAndAnswers",
-        "title": "CQLC: View Questions and Answers"
+        "title": "PLQLC: View Questions and Answers"
       },
       {
         "command": "extension.addPersonalizedQuestion",
-        "title": "CQLC: Add Personalized Question"
+        "title": "PLQLC: Add Personalized Question"
       },
       {
         "command": "extension.viewPersonalizedQuestions",
-        "title": "CQLC: View Personalized Questions"
+        "title": "PLQLC: View Personalized Questions"
       },
       {
         "command": "extension.generatePersonalizedQuiz",
-        "title": "CQLC: Generate Personalized Quiz"
+        "title": "PLQLC: Generate Personalized Quiz"
       }
     ],
     "menus": {
