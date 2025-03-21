@@ -706,6 +706,66 @@ function activate(context) {
     });
   });
 
+  function openEditQuestionPanel(index) {
+    const question = personalizedQuestionsData[index];
+
+    // Create a Webview Panel for editing the question
+    const panel = vscode.window.createWebviewPanel(
+      'editQuestion',
+      'Edit Question',
+      vscode.ViewColumn.One,
+      { enableScripts: true }
+    );
+
+    // HTML content for the Webview
+    panel.webview.html = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Edit Question</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        textarea { width: 100%; height: 200px; font-size: 14px; margin-bottom: 10px; }
+        button { padding: 10px 20px; background: #007acc; color: white; border: none; cursor: pointer; }
+        button:hover { background: #005a9e; }
+      </style>
+    </head>
+    <body>
+      <h1>Edit Question</h1>
+      <p><strong>Question:</strong></p>
+      <textarea id="question">${question.text || 'No question'}</textarea>
+      <p><strong>Highlighted Code:</strong></p>
+      <textarea id="code">${question.highlightedCode || 'No highlighted code'}</textarea>
+      <button onclick="saveChanges()">Save</button>
+      <script>
+        const vscode = acquireVsCodeApi();
+
+        function saveChanges() {
+          const updatedQuestion = document.getElementById('question').value;
+          const updatedCode = document.getElementById('code').value;
+          vscode.postMessage({ type: 'saveChanges', index: ${index}, updatedQuestion, updatedCode });
+        }
+      </script>
+    </body>
+    </html>
+  `;
+
+    // Handle messages from the Webview
+    panel.webview.onDidReceiveMessage((message) => {
+      if (message.type === 'saveChanges') {
+        // Update the data in memory
+        personalizedQuestionsData[message.index].text = message.updatedQuestion;
+        personalizedQuestionsData[message.index].highlightedCode = message.updatedCode;
+
+        saveDataToFile('personalizedQuestions.json', personalizedQuestionsData);
+        vscode.window.showInformationMessage('Changes saved successfully!');
+        panel.dispose(); // Close the edit panel
+      }
+    });
+  }
+
   // Command: View personalized questions
   let viewPersonalizedQuestionsCommand = vscode.commands.registerCommand('extension.viewPersonalizedQuestions', async () => {
     if (personalizedQuestionsData.length === 0) {
@@ -723,100 +783,98 @@ function activate(context) {
 
     // Build a table with editable fields, revert button, and a checkbox inside the Actions column
     const questionsTable = personalizedQuestionsData.map((question, index) => {
-      // Extract only the last three parts of the file path for display
       const filePathParts = question.filePath.split('/');
-
-      const truncateCharacters = (text, charLimit) => {
-        return text.length > charLimit ? text.slice(0, charLimit) + '...' : text;
-      };
-      let shortenedFilePath = filePathParts.length > 2
+      const shortenedFilePath = filePathParts.length > 2
         ? `.../${filePathParts.slice(-3).join('/')}`
         : question.filePath;
-      shortenedFilePath = truncateCharacters(shortenedFilePath, 30);
 
       return `
-            <tr id="row-${index}">
-                <td>${index + 1}</td>
-                <td title="${question.filePath}">${shortenedFilePath}</td>
-                <td>
-                    <textarea class="code-area" id="code-${index}">${question.highlightedCode || 'No highlighted code'}</textarea>
-                </td>
-                <td>
-                    <textarea class="question-area" id="question-${index}">${question.text || 'No question'}</textarea>
-                </td>
-                <td>
-                    <button onclick="saveChanges(${index})">Save</button>
-                    <button onclick="revertChanges(${index})" style="background-color: orange; color: white;">Revert</button>
-                    <br>
-                    <input type="checkbox" id="exclude-${index}" ${question.excludeFromQuiz ? 'checked' : ''} onchange="toggleExclude(${index})">
-                    <label for="exclude-${index}">Exclude from Quiz</label>
-                </td>
-            </tr>
-        `;
+      <tr id="row-${index}">
+        <td>${index + 1}</td>
+        <td title="${question.filePath}">${shortenedFilePath}</td>
+        <td>
+          <textarea class="code-area" id="code-${index}">${question.highlightedCode || 'No highlighted code'}</textarea>
+        </td>
+        <td>
+          <textarea class="question-area" id="question-${index}">${question.text || 'No question'}</textarea>
+        </td>
+        <td>
+          <button onclick="saveChanges(${index})">Save</button>
+          <button onclick="revertChanges(${index})" style="background-color: orange; color: white;">Revert</button>
+          <button onclick="editQuestion(${index})" style="background-color: green; color: white;">Edit</button>
+          <br>
+          <input type="checkbox" id="exclude-${index}" ${question.excludeFromQuiz ? 'checked' : ''} onchange="toggleExclude(${index})">
+          <label for="exclude-${index}">Exclude from Quiz</label>
+        </td>
+      </tr>
+    `;
     }).join('');
 
     // HTML content for the Webview
     panel.webview.html = `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>View Personalized Questions</title>
-            <style>
-                body { font-family: Arial, sans-serif; margin: 20px; }
-                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                th { background-color: #007acc; color: white; }
-                textarea { width: 100%; height: 100px; font-size: 14px; border: 1px solid #ccc; padding: 5px; }
-                .code-area { background-color: rgb(0, 0, 0); color: white; font-family: monospace; }
-                .question-area { background-color: #f4f4f4; color: black; font-family: sans-serif; }
-                button { padding: 5px 10px; margin: 5px; cursor: pointer; }
-                input[type="checkbox"] { transform: scale(1.2); margin-top: 5px; }
-            </style>
-        </head>
-        <body>
-            <h1>All Personalized Questions</h1>
-            <table>
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>File</th>
-                        <th>Highlighted Code</th>
-                        <th>Question</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${questionsTable}
-                </tbody>
-            </table>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>View Personalized Questions</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #007acc; color: white; }
+        textarea { width: 100%; height: 100px; font-size: 14px; border: 1px solid #ccc; padding: 5px; }
+        .code-area { background-color: rgb(0, 0, 0); color: white; font-family: monospace; }
+        .question-area { background-color: #f4f4f4; color: black; font-family: sans-serif; }
+        button { padding: 5px 10px; margin: 5px; cursor: pointer; }
+        input[type="checkbox"] { transform: scale(1.2); margin-top: 5px; }
+      </style>
+    </head>
+    <body>
+      <h1>All Personalized Questions</h1>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>File</th>
+            <th>Highlighted Code</th>
+            <th>Question</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${questionsTable}
+        </tbody>
+      </table>
 
-            <script>
-                const vscode = acquireVsCodeApi();
-                const originalData = JSON.parse(JSON.stringify(${JSON.stringify(personalizedQuestionsData)}));
+      <script>
+        const vscode = acquireVsCodeApi();
+        const originalData = JSON.parse(JSON.stringify(${JSON.stringify(personalizedQuestionsData)}));
 
-                function saveChanges(index) {
-                    const updatedCode = document.getElementById('code-' + index).value;
-                    const updatedQuestion = document.getElementById('question-' + index).value;
-                    
-                    vscode.postMessage({ type: 'saveChanges', index, updatedCode, updatedQuestion });
-                }
+        function saveChanges(index) {
+          const updatedCode = document.getElementById('code-' + index).value;
+          const updatedQuestion = document.getElementById('question-' + index).value;
+          vscode.postMessage({ type: 'saveChanges', index, updatedCode, updatedQuestion });
+        }
 
-                function revertChanges(index) {
-                    document.getElementById('code-' + index).value = originalData[index].highlightedCode;
-                    document.getElementById('question-' + index).value = originalData[index].text;
-                    document.getElementById('exclude-' + index).checked = originalData[index].excludeFromQuiz;
-                }
+        function revertChanges(index) {
+          document.getElementById('code-' + index).value = originalData[index].highlightedCode;
+          document.getElementById('question-' + index).value = originalData[index].text;
+          document.getElementById('exclude-' + index).checked = originalData[index].excludeFromQuiz;
+        }
 
-                function toggleExclude(index) {
-                    const excludeStatus = document.getElementById('exclude-' + index).checked;
-                    vscode.postMessage({ type: 'toggleExclude', index, excludeStatus });
-                }
-            </script>
-        </body>
-        </html>
-    `;
+        function toggleExclude(index) {
+          const excludeStatus = document.getElementById('exclude-' + index).checked;
+          vscode.postMessage({ type: 'toggleExclude', index, excludeStatus });
+        }
+
+        function editQuestion(index) {
+          vscode.postMessage({ type: 'editQuestion', index });
+        }
+      </script>
+    </body>
+    </html>
+  `;
 
     // Handle messages from the Webview
     panel.webview.onDidReceiveMessage((message) => {
@@ -834,8 +892,15 @@ function activate(context) {
         personalizedQuestionsData[message.index].excludeFromQuiz = message.excludeStatus;
         saveDataToFile('personalizedQuestions.json', personalizedQuestionsData);
       }
+
+      if (message.type === 'editQuestion') {
+        // Open a new webview panel for editing the question
+        openEditQuestionPanel(message.index);
+      }
     });
   });
+
+
 
 
 
