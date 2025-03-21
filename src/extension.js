@@ -2285,11 +2285,63 @@ function activate(context) {
       vscode.window.showInformationMessage(`Personalized quiz saved in: ${questionsFolderPath}`);
 
       // Generate assessment infoAssessment.json for each student
+      // for (const studentName of [...new Set(personalizedQuestions.map(q => extractStudentName(q.filePath)))]) {
+      //   const studentAssessmentFolderPath = path.join(assessmentFolderPath, studentName);
+      //   if (!fs.existsSync(studentAssessmentFolderPath)) {
+      //     fs.mkdirSync(studentAssessmentFolderPath, { recursive: true });
+      //   }
+
+      //   // Generate infoAssessment.json
+      //   const infoAssessmentPath = path.join(studentAssessmentFolderPath, 'infoAssessment.json');
+      //   const infoAssessmentContent = {
+      //     uuid: uuidv4(),
+      //     type: "Exam",
+      //     title: config.title,
+      //     set: config.set,
+      //     number: config.number,
+      //     allowAccess: [
+      //       {
+      //         mode: "Public",
+      //         uids: [studentName],
+      //         credit: 100,
+      //         timeLimitMin: config.timeLimitMin,
+      //         startDate: config.startDate,
+      //         endDate: config.endDate,
+      //         ...(config.password && { password: config.password }) // Add password if provided
+      //       },
+      //       {
+      //         mode: "Public",
+      //         credit: 0,
+      //         startDate: new Date(new Date(config.startDate).getTime() + config.daysForGrading * 86400000).toISOString(),
+      //         endDate: config.reviewEndDate,
+      //         active: false
+      //       }
+      //     ],
+      //     zones: [
+      //       {
+      //         questions: personalizedQuestions
+      //           .filter(q => extractStudentName(q.filePath) === studentName)
+      //           .map((q, index) => ({
+      //             id: `${config.pl_question_root}/${config.folder}/${studentName}_question${index + 1}`,
+      //             points: config.points_per_question
+      //           }))
+      //       }
+      //     ]
+      //   };
+
+      //   fs.writeFileSync(infoAssessmentPath, JSON.stringify(infoAssessmentContent, null, 2));
+      // }
+
+      // Generate assessment infoAssessment.json for each student
       for (const studentName of [...new Set(personalizedQuestions.map(q => extractStudentName(q.filePath)))]) {
         const studentAssessmentFolderPath = path.join(assessmentFolderPath, studentName);
         if (!fs.existsSync(studentAssessmentFolderPath)) {
           fs.mkdirSync(studentAssessmentFolderPath, { recursive: true });
         }
+
+        // Get all question folders for this student
+        const studentQuestionFolders = fs.readdirSync(questionsFolderPath)
+          .filter(folder => folder.startsWith(`${studentName}_question`));
 
         // Generate infoAssessment.json
         const infoAssessmentPath = path.join(studentAssessmentFolderPath, 'infoAssessment.json');
@@ -2319,12 +2371,10 @@ function activate(context) {
           ],
           zones: [
             {
-              questions: personalizedQuestions
-                .filter(q => extractStudentName(q.filePath) === studentName)
-                .map((q, index) => ({
-                  id: `${config.pl_question_root}/${config.folder}/${studentName}_question${index + 1}`,
-                  points: config.points_per_question
-                }))
+              questions: studentQuestionFolders.map((folder, index) => ({
+                id: `${config.pl_question_root}/${config.folder}/${folder}`,
+                points: config.points_per_question
+              }))
             }
           ]
         };
