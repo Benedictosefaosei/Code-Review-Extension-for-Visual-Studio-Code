@@ -16,7 +16,12 @@
   "activationEvents": [
     "onCommand:extension.highlightAndComment",
     "onCommand:extension.askQuestion",
-    "onCommand:extension.answerQuestion"
+    "onCommand:extension.answerQuestion",
+    "onCommand:extension.viewComments",
+    "onCommand:extension.viewQuestionsAndAnswers",
+    "onCommand:extension.addPersonalizedQuestion",
+    "onCommand:extension.viewPersonalizedQuestions",
+    "onCommand:extension.generatePersonalizedQuiz"
   ],
   "main": "./src/extension.js",
   "contributes": {
