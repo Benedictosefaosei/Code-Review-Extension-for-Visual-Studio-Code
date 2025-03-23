@@ -781,12 +781,18 @@ function activate(context) {
       { enableScripts: true }
     );
 
+    const truncateCharacters = (text, charLimit) => {
+      return text.length > charLimit ? text.slice(0, charLimit) + '...' : text;
+    };
+
     // Build a table with editable fields, revert button, and a checkbox inside the Actions column
     const questionsTable = personalizedQuestionsData.map((question, index) => {
       const filePathParts = question.filePath.split('/');
-      const shortenedFilePath = filePathParts.length > 2
+      let shortenedFilePath = filePathParts.length > 2
         ? `.../${filePathParts.slice(-3).join('/')}`
         : question.filePath;
+
+      shortenedFilePath = truncateCharacters(shortenedFilePath, 30);
 
       return `
       <tr id="row-${index}">
