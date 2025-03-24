@@ -49,6 +49,18 @@
       {
         "command": "extension.generatePersonalizedQuiz",
         "title": "plQLC: Generate Quiz Questions"
+      },
+      {
+        "command": "extension.askQuestion",
+        "title": "plQLC: Ask Questions"
+      },
+      {
+        "command": "extension.answerQuestion",
+        "title": "plQLC: Answer Questions"
+      },
+      {
+        "command": "extension.viewQuestionsAndAnswers",
+        "title": "plQLC: View viewQuestions And Answers "
       }
     ],
     "menus": {

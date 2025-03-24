@@ -338,6 +338,321 @@ function activate(context) {
     });
   });
 
+
+
+
+  // // Command: Ask a question
+  // let askQuestionCommand = vscode.commands.registerCommand('extension.askQuestion', async () => {
+  //   const editor = vscode.window.activeTextEditor;
+  //   if (!editor) {
+  //     vscode.window.showErrorMessage('No active editor found.');
+  //     return;
+  //   }
+
+  //   const selection = editor.selection;
+  //   if (selection.isEmpty) {
+  //     vscode.window.showErrorMessage('Please select a code snippet to ask a question about.');
+  //     return;
+  //   }
+
+  //   const range = new vscode.Range(selection.start, selection.end);
+  //   const selectedText = editor.document.getText(range);
+
+  //   // Create a Webview Panel for asking a question
+  //   const panel = vscode.window.createWebviewPanel(
+  //     'askQuestion', // Panel ID
+  //     'Ask Question', // Panel title
+  //     vscode.ViewColumn.One, // Show in the active column
+  //     { enableScripts: true } // Allow JavaScript in the Webview
+  //   );
+
+  //   panel.webview.html = `
+  // <!DOCTYPE html>
+  // <html lang="en">
+  // <head>
+  //   <meta charset="UTF-8">
+  //   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  //   <title>Ask Question</title>
+  //   <style>
+  //     body { font-family: Arial, sans-serif; margin: 20px; }
+  //     textarea { width: 100%; height: 80px; font-size: 14px; margin-bottom: 10px; }
+  //     button { padding: 10px 20px; background: #007acc; color: white; border: none; cursor: pointer; }
+  //     button:hover { background: #005a9e; }
+  //   </style>
+  // </head>
+  // <body>
+  //   <h1>Ask a Question</h1>
+  //   <p><strong>Selected Code:</strong></p>
+  //   <pre>${selectedText}</pre>
+  //   <textarea id="question" placeholder="Type your question here..."></textarea>
+  //   <button onclick="submitQuestion()">Submit Question</button>
+  //   <script>
+  //     const vscode = acquireVsCodeApi();
+  //     function submitQuestion() {
+  //       const question = document.getElementById('question').value;
+  //       if (question.trim() === '') {
+  //         alert('Question cannot be empty!');
+  //         return;
+  //       }
+  //       vscode.postMessage({ question });
+  //     }
+  //   </script>
+  // </body>
+  // </html>
+  // `;
+
+  //   panel.webview.onDidReceiveMessage((message) => {
+  //     if (message.question) {
+  //       questionsData.push({
+  //         filePath: editor.document.uri.fsPath,
+  //         range: {
+  //           start: { line: selection.start.line, character: selection.start.character },
+  //           end: { line: selection.end.line, character: selection.end.character }
+  //         },
+  //         text: message.question,
+  //         highlightedCode: selectedText,
+  //         answer: '',
+  //       });
+
+  //       saveDataToFile('questionsData.json', questionsData); // Save data to file
+  //       vscode.window.showInformationMessage('Question added successfully!');
+  //       panel.dispose();
+  //     }
+  //   });
+  // });
+
+
+  // // Command: Answer a question
+  // let answerQuestionCommand = vscode.commands.registerCommand('extension.answerQuestion', async () => {
+  //   if (questionsData.length === 0) {
+  //     vscode.window.showInformationMessage('No questions asked yet!');
+  //     return;
+  //   }
+
+  //   const questionItems = questionsData.map((q, index) => ({
+  //     label: `Q${index + 1}: ${q.text}`,
+  //     detail: q.highlightedCode || 'No highlighted code',
+  //     index,
+  //   }));
+
+  //   const selectedQuestion = await vscode.window.showQuickPick(questionItems, {
+  //     placeHolder: 'Select a question to answer',
+  //   });
+
+  //   if (!selectedQuestion) {
+  //     return;
+  //   }
+
+  //   const question = questionsData[selectedQuestion.index];
+
+  //   // Create a Webview Panel for answering a question
+  //   const panel = vscode.window.createWebviewPanel(
+  //     'answerQuestion', // Panel ID
+  //     'Answer Question', // Panel title
+  //     vscode.ViewColumn.One, // Show in the active column
+  //     { enableScripts: true } // Allow JavaScript in the Webview
+  //   );
+
+  //   panel.webview.html = `
+  //             <!DOCTYPE html>
+  //             <html lang="en">
+  //             <head>
+  //             <meta charset="UTF-8">
+  //             <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  //             <title>Answer Question</title>
+  //             <style>
+  //                 body { font-family: Arial, sans-serif; margin: 20px; }
+  //                 textarea { width: 100%; height: 80px; font-size: 14px; margin-bottom: 10px; }
+  //                 button { padding: 10px 20px; background: #007acc; color: white; border: none; cursor: pointer; }
+  //                 button:hover { background: #005a9e; }
+  //             </style>
+  //             </head>
+  //             <body>
+  //             <h1>Answer a Question</h1>
+  //             <p><strong>Question:</strong> ${question.text}</p>
+  //             <p><strong>Highlighted Code:</strong></p>
+  //             <pre>${question.highlightedCode || 'No highlighted code'}</pre>
+  //             <textarea id="answer" placeholder="Type your answer here..."></textarea>
+  //             <button onclick="submitAnswer()">Submit Answer</button>
+  //             <script>
+  //                 const vscode = acquireVsCodeApi();
+  //                 function submitAnswer() {
+  //                 const answer = document.getElementById('answer').value;
+  //                 if (answer.trim() === '') {
+  //                     alert('Answer cannot be empty!');
+  //                     return;
+  //                 }
+  //                 vscode.postMessage({ answer });
+  //                 }
+  //             </script>
+  //             </body>
+  //             </html>
+  //             `;
+
+  //   panel.webview.onDidReceiveMessage((message) => {
+  //     if (message.answer) {
+  //       question.answer = message.answer;
+
+  //       saveDataToFile('questionsData.json', questionsData); // Save updated data
+  //       vscode.window.showInformationMessage('Answer added successfully!');
+  //       panel.dispose();
+  //     }
+  //   });
+  // });
+
+
+
+  // // Command: View questions and answers
+  // let viewQuestionsAndAnswersCommand = vscode.commands.registerCommand('extension.viewQuestionsAndAnswers', async () => {
+  //   if (questionsData.length === 0) {
+  //     vscode.window.showInformationMessage('No questions or answers available yet!');
+  //     return;
+  //   }
+
+  //   // Create a Webview Panel for viewing questions and answers
+  //   const panel = vscode.window.createWebviewPanel(
+  //     'viewQuestionsAndAnswers', // Panel ID
+  //     'View Questions and Answers', // Panel title
+  //     vscode.ViewColumn.One, // Show in the active column
+  //     { enableScripts: true } // Allow JavaScript in the Webview
+  //   );
+
+  //   // Build a table with all the questions and answers
+  //   const questionsTable = questionsData.map((qa, index) => {
+  //     const range = `${qa.range.start.line}:${qa.range.start.character} - ${qa.range.end.line}:${qa.range.end.character}`;
+
+  //     // Extract only the last two parts of the file path for display
+  //     const filePathParts = qa.filePath.split('/');
+
+  //     const truncateCharacters = (text, charLimit) => {
+  //       return text.length > charLimit ? text.slice(0, charLimit) + '...' : text;
+  //     };
+  //     let shortenedFilePath = filePathParts.length > 2
+  //       ? `.../${filePathParts.slice(-3).join('/')}`
+  //       : qa.filePath;
+  //     shortenedFilePath = truncateCharacters(shortenedFilePath, 30);
+
+  //     return `
+  //         <tr>
+  //             <td>${index + 1}</td>
+  //             <td title="${qa.filePath}">${shortenedFilePath}</td>
+  //             <td><pre>${qa.highlightedCode || 'No highlighted code'}</pre></td>
+  //             <td>${qa.text || 'No question'}</td>
+  //             <td>${qa.answer || 'No answer'}</td>
+  //         </tr>
+  //         `;
+  //   }).join('');
+
+  //   // HTML content for the Webview
+  //   panel.webview.html = `
+  //         <!DOCTYPE html>
+  //         <html lang="en">
+  //         <head>
+  //             <meta charset="UTF-8">
+  //             <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  //             <title>View Questions and Answers</title>
+  //             <style>
+  //                 body { font-family: Arial, sans-serif; margin: 20px; }
+  //                 table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+  //                 th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+  //                 th { background-color: #007acc; color: white; }
+  //                 pre { background-color: rgb(0, 0, 0); padding: 5px; border-radius: 5px; color: white; }
+  //                 button { margin-top: 20px; padding: 10px 20px; background: #007acc; color: white; border: none; cursor: pointer; }
+  //                 button:hover { background: #005a9e; }
+  //             </style>
+  //         </head>
+  //         <body>
+  //             <h1>All Questions and Answers</h1>
+  //             <table>
+  //                 <thead>
+  //                     <tr>
+  //                         <th>#</th>
+  //                         <th>File</th>
+  //                         <th>Highlighted Code</th>
+  //                         <th>Question</th>
+  //                         <th>Answer</th>
+  //                     </tr>
+  //                 </thead>
+  //                 <tbody>
+  //                     ${questionsTable}
+  //                 </tbody>
+  //             </table>
+  //             <button id="export">Export to CSV</button>
+  //             <script>
+  //                 document.getElementById('export').addEventListener('click', () => {
+  //                     const rows = [
+  //                         ['#', 'File', 'Range', 'Highlighted Code', 'Question', 'Answer'],
+  //                         ...${JSON.stringify(questionsData.map((qa, index) => [
+  //     index + 1,
+  //     qa.filePath,
+  //     `${qa.range.start.line}:${qa.range.start.character} - ${qa.range.end.line}:${qa.range.end.character}`,
+  //     qa.highlightedCode || 'No highlighted code',
+  //     qa.text || 'No question',
+  //     qa.answer || 'No answer'
+  //   ]))}
+  //                     ];
+
+  //                     const csvContent = rows.map(e => e.join(",")).join("\n");
+  //                     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  //                     const url = URL.createObjectURL(blob);
+  //                     const link = document.createElement('a');
+  //                     link.setAttribute('href', url);
+  //                     link.setAttribute('download', 'questions_and_answers.csv');
+  //                     document.body.appendChild(link);
+  //                     link.click();
+  //                     document.body.removeChild(link);
+  //                 });
+  //             </script>
+  //         </body>
+  //         </html>
+  //     `;
+  // });
+
+
+
+
+
+
+  // Helper function to get the base workspace directory (CIS500_P1)
+  function getBaseWorkspaceDirectory() {
+    if (vscode.workspace.workspaceFolders) {
+      return vscode.workspace.workspaceFolders[0].uri.fsPath;
+    } else {
+      vscode.window.showErrorMessage("No workspace folder is open.");
+      throw new Error("Workspace folder is required to save data.");
+    }
+  }
+
+  // Helper function to get student directory from file path
+  function getStudentDirectory(filePath) {
+    const parts = filePath.split(path.sep);
+    const baseDir = getBaseWorkspaceDirectory();
+    const baseParts = baseDir.split(path.sep);
+
+    // Find the index where the student name should be (right after base directory)
+    const studentIndex = baseParts.length;
+    if (parts.length > studentIndex) {
+      return path.join(baseDir, parts[studentIndex]);
+    }
+    return null;
+  }
+
+  // Modified save functions
+  function saveQuestionData(questionData, filePath) {
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(filePath, JSON.stringify(questionData, null, 2));
+  }
+
+  function loadQuestionData(filePath) {
+    if (fs.existsSync(filePath)) {
+      return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    }
+    return [];
+  }
+
   // Command: Ask a question
   let askQuestionCommand = vscode.commands.registerCommand('extension.askQuestion', async () => {
     const editor = vscode.window.activeTextEditor;
@@ -354,54 +669,58 @@ function activate(context) {
 
     const range = new vscode.Range(selection.start, selection.end);
     const selectedText = editor.document.getText(range);
+    const filePath = editor.document.uri.fsPath;
 
     // Create a Webview Panel for asking a question
     const panel = vscode.window.createWebviewPanel(
-      'askQuestion', // Panel ID
-      'Ask Question', // Panel title
-      vscode.ViewColumn.One, // Show in the active column
-      { enableScripts: true } // Allow JavaScript in the Webview
+      'askQuestion',
+      'Ask Question',
+      vscode.ViewColumn.One,
+      { enableScripts: true }
     );
 
     panel.webview.html = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ask Question</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    textarea { width: 100%; height: 80px; font-size: 14px; margin-bottom: 10px; }
-    button { padding: 10px 20px; background: #007acc; color: white; border: none; cursor: pointer; }
-    button:hover { background: #005a9e; }
-  </style>
-</head>
-<body>
-  <h1>Ask a Question</h1>
-  <p><strong>Selected Code:</strong></p>
-  <pre>${selectedText}</pre>
-  <textarea id="question" placeholder="Type your question here..."></textarea>
-  <button onclick="submitQuestion()">Submit Question</button>
-  <script>
-    const vscode = acquireVsCodeApi();
-    function submitQuestion() {
-      const question = document.getElementById('question').value;
-      if (question.trim() === '') {
-        alert('Question cannot be empty!');
-        return;
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ask Question</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 20px; }
+      textarea { width: 100%; height: 80px; font-size: 14px; margin-bottom: 10px; }
+      button { padding: 10px 20px; background: #007acc; color: white; border: none; cursor: pointer; }
+      button:hover { background: #005a9e; }
+    </style>
+  </head>
+  <body>
+    <h1>Ask a Question</h1>
+    <p><strong>Selected Code:</strong></p>
+    <pre>${selectedText}</pre>
+    <textarea id="question" placeholder="Type your question here..."></textarea>
+    <button onclick="submitQuestion()">Submit Question</button>
+    <script>
+      const vscode = acquireVsCodeApi();
+      function submitQuestion() {
+        const question = document.getElementById('question').value;
+        if (question.trim() === '') {
+          alert('Question cannot be empty!');
+          return;
+        }
+        vscode.postMessage({ question });
       }
-      vscode.postMessage({ question });
-    }
-  </script>
-</body>
-</html>
-`;
+    </script>
+  </body>
+  </html>
+  `;
 
-    panel.webview.onDidReceiveMessage((message) => {
+    panel.webview.onDidReceiveMessage(async (message) => {
       if (message.question) {
-        questionsData.push({
-          filePath: editor.document.uri.fsPath,
+        const baseDir = getBaseWorkspaceDirectory();
+        const studentDir = getStudentDirectory(filePath);
+
+        const newQuestion = {
+          filePath,
           range: {
             start: { line: selection.start.line, character: selection.start.character },
             end: { line: selection.end.line, character: selection.end.character }
@@ -409,11 +728,32 @@ function activate(context) {
           text: message.question,
           highlightedCode: selectedText,
           answer: '',
-        });
+          timestamp: new Date().toISOString()
+        };
 
-        saveDataToFile('questionsData.json', questionsData); // Save data to file
-        vscode.window.showInformationMessage('Question added successfully!');
-        panel.dispose();
+        try {
+          // Save to global questions file
+          const globalQuestionsPath = path.join(baseDir, 'questionsData.json');
+          const globalQuestions = loadQuestionData(globalQuestionsPath);
+          globalQuestions.push(newQuestion);
+          saveQuestionData(globalQuestions, globalQuestionsPath);
+
+          // Save to student-specific questions file if student directory exists
+          if (studentDir) {
+            const studentQuestionsPath = path.join(studentDir, 'questionsData.json');
+            const studentQuestions = loadQuestionData(studentQuestionsPath);
+            studentQuestions.push(newQuestion);
+            saveQuestionData(studentQuestions, studentQuestionsPath);
+          }
+
+          // Update in-memory data
+          questionsData.push(newQuestion);
+
+          vscode.window.showInformationMessage('Question added successfully!');
+          panel.dispose();
+        } catch (error) {
+          vscode.window.showErrorMessage(`Failed to save question: ${error.message}`);
+        }
       }
     });
   });
@@ -440,68 +780,142 @@ function activate(context) {
     }
 
     const question = questionsData[selectedQuestion.index];
+    const filePath = question.filePath;
+    const baseDir = getBaseWorkspaceDirectory();
+    const studentDir = getStudentDirectory(filePath);
 
     // Create a Webview Panel for answering a question
     const panel = vscode.window.createWebviewPanel(
-      'answerQuestion', // Panel ID
-      'Answer Question', // Panel title
-      vscode.ViewColumn.One, // Show in the active column
-      { enableScripts: true } // Allow JavaScript in the Webview
+      'answerQuestion',
+      'Answer Question',
+      vscode.ViewColumn.One,
+      { enableScripts: true }
     );
 
     panel.webview.html = `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Answer Question</title>
-            <style>
-                body { font-family: Arial, sans-serif; margin: 20px; }
-                textarea { width: 100%; height: 80px; font-size: 14px; margin-bottom: 10px; }
-                button { padding: 10px 20px; background: #007acc; color: white; border: none; cursor: pointer; }
-                button:hover { background: #005a9e; }
-            </style>
-            </head>
-            <body>
-            <h1>Answer a Question</h1>
-            <p><strong>Question:</strong> ${question.text}</p>
-            <p><strong>Highlighted Code:</strong></p>
-            <pre>${question.highlightedCode || 'No highlighted code'}</pre>
-            <textarea id="answer" placeholder="Type your answer here..."></textarea>
-            <button onclick="submitAnswer()">Submit Answer</button>
-            <script>
-                const vscode = acquireVsCodeApi();
-                function submitAnswer() {
-                const answer = document.getElementById('answer').value;
-                if (answer.trim() === '') {
-                    alert('Answer cannot be empty!');
-                    return;
-                }
-                vscode.postMessage({ answer });
-                }
-            </script>
-            </body>
-            </html>
-            `;
+              <!DOCTYPE html>
+              <html lang="en">
+              <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Answer Question</title>
+              <style>
+                  body { font-family: Arial, sans-serif; margin: 20px; }
+                  textarea { width: 100%; height: 80px; font-size: 14px; margin-bottom: 10px; }
+                  button { padding: 10px 20px; background: #007acc; color: white; border: none; cursor: pointer; }
+                  button:hover { background: #005a9e; }
+              </style>
+              </head>
+              <body>
+              <h1>Answer a Question</h1>
+              <p><strong>Question:</strong> ${question.text}</p>
+              <p><strong>Highlighted Code:</strong></p>
+              <pre>${question.highlightedCode || 'No highlighted code'}</pre>
+              <textarea id="answer" placeholder="Type your answer here..."></textarea>
+              <button onclick="submitAnswer()">Submit Answer</button>
+              <script>
+                  const vscode = acquireVsCodeApi();
+                  function submitAnswer() {
+                  const answer = document.getElementById('answer').value;
+                  if (answer.trim() === '') {
+                      alert('Answer cannot be empty!');
+                      return;
+                  }
+                  vscode.postMessage({ answer });
+                  }
+              </script>
+              </body>
+              </html>
+              `;
 
-    panel.webview.onDidReceiveMessage((message) => {
+    panel.webview.onDidReceiveMessage(async (message) => {
       if (message.answer) {
         question.answer = message.answer;
 
-        saveDataToFile('questionsData.json', questionsData); // Save updated data
-        vscode.window.showInformationMessage('Answer added successfully!');
-        panel.dispose();
+        try {
+          // Update global questions file
+          const globalQuestionsPath = path.join(baseDir, 'questionsData.json');
+          const globalQuestions = loadQuestionData(globalQuestionsPath);
+          const globalIndex = globalQuestions.findIndex(q =>
+            q.filePath === question.filePath &&
+            q.range.start.line === question.range.start.line &&
+            q.timestamp === question.timestamp
+          );
+          if (globalIndex !== -1) {
+            globalQuestions[globalIndex].answer = message.answer;
+            saveQuestionData(globalQuestions, globalQuestionsPath);
+          }
+
+          // Update student-specific questions file if exists
+          if (studentDir) {
+            const studentQuestionsPath = path.join(studentDir, 'questionsData.json');
+            if (fs.existsSync(studentQuestionsPath)) {
+              const studentQuestions = loadQuestionData(studentQuestionsPath);
+              const studentIndex = studentQuestions.findIndex(q =>
+                q.filePath === question.filePath &&
+                q.range.start.line === question.range.start.line &&
+                q.timestamp === question.timestamp
+              );
+              if (studentIndex !== -1) {
+                studentQuestions[studentIndex].answer = message.answer;
+                saveQuestionData(studentQuestions, studentQuestionsPath);
+              }
+            }
+          }
+
+          vscode.window.showInformationMessage('Answer added successfully!');
+          panel.dispose();
+        } catch (error) {
+          vscode.window.showErrorMessage(`Failed to save answer: ${error.message}`);
+        }
       }
     });
   });
 
   // Command: View questions and answers
   let viewQuestionsAndAnswersCommand = vscode.commands.registerCommand('extension.viewQuestionsAndAnswers', async () => {
-    if (questionsData.length === 0) {
+    // This can remain largely the same, but we should load from both locations
+    const baseDir = getBaseWorkspaceDirectory();
+    const globalQuestionsPath = path.join(baseDir, 'questionsData.json');
+
+    let allQuestions = [];
+
+    // Load global questions
+    if (fs.existsSync(globalQuestionsPath)) {
+      allQuestions.push(...loadQuestionData(globalQuestionsPath));
+    }
+
+    // Load student-specific questions
+    const studentDirs = fs.readdirSync(baseDir)
+      .filter(name => !name.includes('.') && name !== 'node_modules'); // Simple filter for student directories
+
+    for (const studentDir of studentDirs) {
+      const studentQuestionsPath = path.join(baseDir, studentDir, 'questionsData.json');
+      if (fs.existsSync(studentQuestionsPath)) {
+        allQuestions.push(...loadQuestionData(studentQuestionsPath));
+      }
+    }
+
+    // Remove duplicates (same question in both files)
+    const uniqueQuestions = allQuestions.filter((question, index, self) =>
+      index === self.findIndex(q =>
+        q.filePath === question.filePath &&
+        q.range.start.line === question.range.start.line &&
+        q.timestamp === question.timestamp
+      )
+    );
+
+    if (uniqueQuestions.length === 0) {
       vscode.window.showInformationMessage('No questions or answers available yet!');
       return;
     }
+
+    // Update in-memory data
+    questionsData.length = 0;
+    questionsData.push(...uniqueQuestions);
+
+    // Rest of your existing viewQuestionsAndAnswersCommand implementation...
+    // (the Webview panel creation and HTML generation)
 
     // Create a Webview Panel for viewing questions and answers
     const panel = vscode.window.createWebviewPanel(
@@ -527,56 +941,56 @@ function activate(context) {
       shortenedFilePath = truncateCharacters(shortenedFilePath, 30);
 
       return `
-        <tr>
-            <td>${index + 1}</td>
-            <td title="${qa.filePath}">${shortenedFilePath}</td>
-            <td><pre>${qa.highlightedCode || 'No highlighted code'}</pre></td>
-            <td>${qa.text || 'No question'}</td>
-            <td>${qa.answer || 'No answer'}</td>
-        </tr>
-        `;
+          <tr>
+              <td>${index + 1}</td>
+              <td title="${qa.filePath}">${shortenedFilePath}</td>
+              <td><pre>${qa.highlightedCode || 'No highlighted code'}</pre></td>
+              <td>${qa.text || 'No question'}</td>
+              <td>${qa.answer || 'No answer'}</td>
+          </tr>
+          `;
     }).join('');
 
     // HTML content for the Webview
     panel.webview.html = `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>View Questions and Answers</title>
-            <style>
-                body { font-family: Arial, sans-serif; margin: 20px; }
-                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
-                th { background-color: #007acc; color: white; }
-                pre { background-color: rgb(0, 0, 0); padding: 5px; border-radius: 5px; color: white; }
-                button { margin-top: 20px; padding: 10px 20px; background: #007acc; color: white; border: none; cursor: pointer; }
-                button:hover { background: #005a9e; }
-            </style>
-        </head>
-        <body>
-            <h1>All Questions and Answers</h1>
-            <table>
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>File</th>
-                        <th>Highlighted Code</th>
-                        <th>Question</th>
-                        <th>Answer</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${questionsTable}
-                </tbody>
-            </table>
-            <button id="export">Export to CSV</button>
-            <script>
-                document.getElementById('export').addEventListener('click', () => {
-                    const rows = [
-                        ['#', 'File', 'Range', 'Highlighted Code', 'Question', 'Answer'],
-                        ...${JSON.stringify(questionsData.map((qa, index) => [
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>View Questions and Answers</title>
+              <style>
+                  body { font-family: Arial, sans-serif; margin: 20px; }
+                  table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                  th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+                  th { background-color: #007acc; color: white; }
+                  pre { background-color: rgb(0, 0, 0); padding: 5px; border-radius: 5px; color: white; }
+                  button { margin-top: 20px; padding: 10px 20px; background: #007acc; color: white; border: none; cursor: pointer; }
+                  button:hover { background: #005a9e; }
+              </style>
+          </head>
+          <body>
+              <h1>All Questions and Answers</h1>
+              <table>
+                  <thead>
+                      <tr>
+                          <th>#</th>
+                          <th>File</th>
+                          <th>Highlighted Code</th>
+                          <th>Question</th>
+                          <th>Answer</th>
+                      </tr>
+                  </thead>
+                  <tbody>
+                      ${questionsTable}
+                  </tbody>
+              </table>
+              <button id="export">Export to CSV</button>
+              <script>
+                  document.getElementById('export').addEventListener('click', () => {
+                      const rows = [
+                          ['#', 'File', 'Range', 'Highlighted Code', 'Question', 'Answer'],
+                          ...${JSON.stringify(questionsData.map((qa, index) => [
       index + 1,
       qa.filePath,
       `${qa.range.start.line}:${qa.range.start.character} - ${qa.range.end.line}:${qa.range.end.character}`,
@@ -584,25 +998,54 @@ function activate(context) {
       qa.text || 'No question',
       qa.answer || 'No answer'
     ]))}
-                    ];
+                      ];
 
-                    const csvContent = rows.map(e => e.join(",")).join("\n");
-                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.setAttribute('href', url);
-                    link.setAttribute('download', 'questions_and_answers.csv');
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                });
-            </script>
-        </body>
-        </html>
-    `;
+                      const csvContent = rows.map(e => e.join(",")).join("\n");
+                      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                      const url = URL.createObjectURL(blob);
+                      const link = document.createElement('a');
+                      link.setAttribute('href', url);
+                      link.setAttribute('download', 'questions_and_answers.csv');
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                  });
+              </script>
+          </body>
+          </html>
+      `;
   });
 
-  // Command: Add a personalized question
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   let addPersonalizedQuestionCommand = vscode.commands.registerCommand('extension.addPersonalizedQuestion', async () => {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
