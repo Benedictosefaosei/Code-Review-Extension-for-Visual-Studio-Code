@@ -62,11 +62,25 @@ function ensureGitIgnoreForPersonalizedQuestions() {
 // Helper function to extract student name from filePath
 function extractStudentName(filePath) {
   const parts = filePath.split(path.sep);
-  for (let i = 0; i < parts.length; i++) {
-    if (parts[i].startsWith('CIS')) {
-      return parts[i + 1]; // The actual student's name
+
+  // First, check if the path contains an email address
+  for (let part of parts) {
+    if (part.includes('@')) {
+      return part; // Return the email address as the student name
     }
   }
+
+  // If no email is found, check for the folder structure with student names
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i].startsWith('CIS')) {
+      // The next part should be the student's name
+      if (i + 1 < parts.length) {
+        return parts[i + 1]; // Return the student's name
+      }
+    }
+  }
+
+  // If no student name is found, return 'unknown_user'
   return 'unknown_user';
 }
 
@@ -970,111 +984,76 @@ function activate(context) {
         fs.mkdirSync(assessmentFolderPath, { recursive: true });
       }
 
-      // Load personalizedQuestions.json
-      const questionsJsonPath = path.join(vscode.workspace.rootPath, 'personalizedQuestions.json');
-      if (!fs.existsSync(questionsJsonPath)) {
-        vscode.window.showErrorMessage('personalizedQuestions.json file not found in the workspace.');
-        return;
-      }
-
-      const personalizedQuestions = JSON.parse(fs.readFileSync(questionsJsonPath, 'utf8'));
-
-      // Extract student name from filePath
+      // Extract student names from file paths
       function extractStudentName(filePath) {
         const parts = filePath.split(path.sep);
-        for (let i = 0; i < parts.length; i++) {
-          if (parts[i].startsWith('CIS')) {
-            return parts[i + 1]; // The actual student's name
+
+        // First, check if the path contains an email address
+        for (let part of parts) {
+          if (part.includes('@')) {
+            return part; // Return the email address as the student name
           }
         }
+
+        // If no email is found, check for the folder structure with student names
+        for (let i = 0; i < parts.length; i++) {
+          if (parts[i].startsWith('CIS')) {
+            // The next part should be the student's name
+            if (i + 1 < parts.length) {
+              return parts[i + 1]; // Return the student's name
+            }
+          }
+        }
+
+        // If no student name is found, return 'unknown_user'
         return 'unknown_user';
       }
 
-      // Generate questions and info.json files
-      for (const [index, question] of personalizedQuestions.entries()) {
+      // Group questions by student
+      const questionsByStudent = {};
+      for (const question of personalizedQuestionsData) {
         const studentName = extractStudentName(question.filePath);
+        if (!questionsByStudent[studentName]) {
+          questionsByStudent[studentName] = [];
+        }
+        questionsByStudent[studentName].push(question);
+      }
 
-        // Create the folder
-        const studentQuestionFolderPath = path.join(questionsFolderPath, `${studentName}_question${index + 1}`);
+      // Generate questions and info.json files for each student
+      for (const [studentName, questions] of Object.entries(questionsByStudent)) {
+        // Create the student's question folder
+        const studentQuestionFolderPath = path.join(questionsFolderPath, studentName);
         if (!fs.existsSync(studentQuestionFolderPath)) {
           fs.mkdirSync(studentQuestionFolderPath, { recursive: true });
         }
 
-        // Create question.html using the template
-        const questionHTMLPath = path.join(studentQuestionFolderPath, 'question.html');
-        const questionHTMLContent = generateQuestionHTML(question, config.language);
-        fs.writeFileSync(questionHTMLPath, questionHTMLContent);
+        // Generate question.html and info.json for each question
+        for (const [index, question] of questions.entries()) {
+          const questionFolderPath = path.join(studentQuestionFolderPath, `question${index + 1}`);
+          if (!fs.existsSync(questionFolderPath)) {
+            fs.mkdirSync(questionFolderPath, { recursive: true });
+          }
 
-        // Create info.json
-        const infoJSONPath = path.join(studentQuestionFolderPath, 'info.json');
-        fs.writeFileSync(infoJSONPath, JSON.stringify({
-          uuid: uuidv4(),
-          type: "v3",
-          title: `${config.title} Q${index + 1}`,
-          topic: config.topic
-        }, null, 2));
-      }
+          // Create question.html
+          const questionHTMLPath = path.join(questionFolderPath, 'question.html');
+          const questionHTMLContent = generateQuestionHTML(question, config.language);
+          fs.writeFileSync(questionHTMLPath, questionHTMLContent);
 
-      vscode.window.showInformationMessage(`Personalized quiz saved in: ${questionsFolderPath}`);
+          // Create info.json
+          const infoJSONPath = path.join(questionFolderPath, 'info.json');
+          fs.writeFileSync(infoJSONPath, JSON.stringify({
+            uuid: uuidv4(),
+            type: "v3",
+            title: `${config.title} Q${index + 1}`,
+            topic: config.topic
+          }, null, 2));
+        }
 
-      // Generate assessment infoAssessment.json for each student
-      // for (const studentName of [...new Set(personalizedQuestions.map(q => extractStudentName(q.filePath)))]) {
-      //   const studentAssessmentFolderPath = path.join(assessmentFolderPath, studentName);
-      //   if (!fs.existsSync(studentAssessmentFolderPath)) {
-      //     fs.mkdirSync(studentAssessmentFolderPath, { recursive: true });
-      //   }
-
-      //   // Generate infoAssessment.json
-      //   const infoAssessmentPath = path.join(studentAssessmentFolderPath, 'infoAssessment.json');
-      //   const infoAssessmentContent = {
-      //     uuid: uuidv4(),
-      //     type: "Exam",
-      //     title: config.title,
-      //     set: config.set,
-      //     number: config.number,
-      //     allowAccess: [
-      //       {
-      //         mode: "Public",
-      //         uids: [studentName],
-      //         credit: 100,
-      //         timeLimitMin: config.timeLimitMin,
-      //         startDate: config.startDate,
-      //         endDate: config.endDate,
-      //         ...(config.password && { password: config.password }) // Add password if provided
-      //       },
-      //       {
-      //         mode: "Public",
-      //         credit: 0,
-      //         startDate: new Date(new Date(config.startDate).getTime() + config.daysForGrading * 86400000).toISOString(),
-      //         endDate: config.reviewEndDate,
-      //         active: false
-      //       }
-      //     ],
-      //     zones: [
-      //       {
-      //         questions: personalizedQuestions
-      //           .filter(q => extractStudentName(q.filePath) === studentName)
-      //           .map((q, index) => ({
-      //             id: `${config.pl_question_root}/${config.folder}/${studentName}_question${index + 1}`,
-      //             points: config.points_per_question
-      //           }))
-      //       }
-      //     ]
-      //   };
-
-      //   fs.writeFileSync(infoAssessmentPath, JSON.stringify(infoAssessmentContent, null, 2));
-      // }
-
-      // Generate assessment infoAssessment.json for each student
-      for (const studentName of [...new Set(personalizedQuestions.map(q => extractStudentName(q.filePath)))]) {
+        // Create the student's assessment folder
         const studentAssessmentFolderPath = path.join(assessmentFolderPath, studentName);
         if (!fs.existsSync(studentAssessmentFolderPath)) {
           fs.mkdirSync(studentAssessmentFolderPath, { recursive: true });
         }
-
-        // Get all question folders for this student
-        const studentQuestionFolders = fs.readdirSync(questionsFolderPath)
-          .filter(folder => folder.startsWith(`${studentName}_question`));
 
         // Generate infoAssessment.json
         const infoAssessmentPath = path.join(studentAssessmentFolderPath, 'infoAssessment.json');
@@ -1104,8 +1083,8 @@ function activate(context) {
           ],
           zones: [
             {
-              questions: studentQuestionFolders.map((folder, index) => ({
-                id: `${config.pl_question_root}/${config.folder}/${folder}`,
+              questions: questions.map((q, index) => ({
+                id: `${config.pl_question_root}/${config.folder}/${studentName}/question${index + 1}`,
                 points: config.points_per_question
               }))
             }
@@ -1115,7 +1094,7 @@ function activate(context) {
         fs.writeFileSync(infoAssessmentPath, JSON.stringify(infoAssessmentContent, null, 2));
       }
 
-      vscode.window.showInformationMessage(`Assessment quiz saved in: ${assessmentFolderPath}`);
+      vscode.window.showInformationMessage(`Personalized quiz saved in: ${questionsFolderPath}`);
     }
   );
 
