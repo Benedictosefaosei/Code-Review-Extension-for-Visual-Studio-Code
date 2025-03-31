@@ -28,7 +28,7 @@
     "commands": [
       {
         "command": "extension.askQuestion",
-        "title": "plQLC: Add Practice Question"
+        "title": "plQLC: Ask Practice Question"
       },
       {
         "command": "extension.answerQuestion",
