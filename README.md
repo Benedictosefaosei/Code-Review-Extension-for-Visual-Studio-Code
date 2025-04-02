@@ -6,7 +6,7 @@ Welcome to the **Prairielearn Code Review Extension**! The Code Review Extension
 
 ## **Features**
 
-### How to Use**:
+### How to Use The Extension:
   1. Highlight a code snippet in the editor.
   2. Ask Practice Question
   3. Answer Practice Question
