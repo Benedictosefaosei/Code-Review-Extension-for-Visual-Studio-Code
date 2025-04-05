@@ -1017,6 +1017,7 @@ function activate(context) {
   });
 
 
+
   let addPersonalizedQuestionCommand = vscode.commands.registerCommand('extension.addPersonalizedQuestion', async () => {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
@@ -1032,6 +1033,20 @@ function activate(context) {
 
     const range = new vscode.Range(selection.start, selection.end);
     let selectedText = editor.document.getText(range);
+
+    // Get existing questions for suggestions
+    let existingQuestions = [];
+    try {
+      const workspaceFolders = vscode.workspace.workspaceFolders;
+      if (workspaceFolders) {
+        const uri = vscode.Uri.file(`${workspaceFolders[0].uri.fsPath}/personalizedQuestions.json`);
+        const fileContent = await vscode.workspace.fs.readFile(uri);
+        const data = JSON.parse(fileContent.toString());
+        existingQuestions = data.map(item => item.text).filter(Boolean);
+      }
+    } catch (error) {
+      console.log('Could not load existing questions:', error);
+    }
 
     // Create a Webview Panel for adding a personalized question
     const panel = vscode.window.createWebviewPanel(
@@ -1055,6 +1070,29 @@ function activate(context) {
                 button { padding: 10px 20px; background: #007acc; color: white; border: none; cursor: pointer; margin-right: 10px; }
                 button:hover { background: #005a9e; }
                 .code-area { width: 100%; height: 120px; font-family: monospace; background: #f4f4f4; padding: 10px; border-radius: 5px; }
+                .optional { color: #666; font-style: italic; }
+                #suggestions { 
+                    position: absolute; 
+                    background: white; 
+                    border: 1px solid #ddd; 
+                    max-height: 200px; 
+                    overflow-y: auto; 
+                    z-index: 1000;
+                    display: none;
+                    width: 100%;
+                    box-sizing: border-box;
+                }
+                .suggestion-item {
+                    padding: 8px;
+                    cursor: pointer;
+                    border-bottom: 1px solid #eee;
+                }
+                .suggestion-item:hover {
+                    background-color: #f0f0f0;
+                }
+                #question-container {
+                    position: relative;
+                }
             </style>
         </head>
         <body>
@@ -1065,21 +1103,115 @@ function activate(context) {
             <button onclick="copyAndPasteCode()">Copy & Paste Code</button>
             <button onclick="saveCode()">Save Code</button>
             
-            <p><strong>Add Your Question:</strong></p>
-            <textarea id="question" placeholder="Type your personalized question here..." rows="4"></textarea>
+            <div id="question-container">
+                <p><strong>Add Your Question:</strong></p>
+                <textarea id="question" placeholder="Type your personalized question here..." rows="4"></textarea>
+                <div id="suggestions"></div>
+            </div>
+            
+            <p><strong>Add Answer (Optional):</strong></p>
+            <textarea id="answer" placeholder="Type the answer to your question (optional)..." rows="4"></textarea>
             
             <button onclick="submitPersonalizedQuestion()">Submit</button>
 
             <script>
                 const vscode = acquireVsCodeApi();
+                const existingQuestions = ${JSON.stringify(existingQuestions)};
+                let currentInput = '';
+                let activeSuggestionIndex = -1;
+
+                // Setup question textarea event listeners
+                const questionInput = document.getElementById('question');
+                const suggestionsContainer = document.getElementById('suggestions');
+
+                questionInput.addEventListener('input', function(e) {
+                    currentInput = e.target.value.toLowerCase();
+                    showSuggestions();
+                });
+
+                questionInput.addEventListener('keydown', function(e) {
+                    const suggestions = document.querySelectorAll('.suggestion-item');
+                    
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        activeSuggestionIndex = Math.min(activeSuggestionIndex + 1, suggestions.length - 1);
+                        highlightSuggestion();
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        activeSuggestionIndex = Math.max(activeSuggestionIndex - 1, -1);
+                        highlightSuggestion();
+                    } else if (e.key === 'Enter' && activeSuggestionIndex >= 0) {
+                        e.preventDefault();
+                        selectSuggestion(suggestions[activeSuggestionIndex]);
+                    } else if (e.key === 'Escape') {
+                        hideSuggestions();
+                    }
+                });
+
+                function showSuggestions() {
+                    if (!currentInput) {
+                        hideSuggestions();
+                        return;
+                    }
+
+                    const filtered = existingQuestions.filter(q => 
+                        q && q.toLowerCase().includes(currentInput))
+                        .slice(0, 5);
+
+                    if (filtered.length === 0) {
+                        hideSuggestions();
+                        return;
+                    }
+
+                    suggestionsContainer.innerHTML = filtered.map(q => {
+                        const escapedText = q.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        return \`<div class="suggestion-item">\${escapedText}</div>\`;
+                    }).join('');
+
+                    document.querySelectorAll('.suggestion-item').forEach((item, index) => {
+                        item.addEventListener('click', () => selectSuggestion(item));
+                    });
+
+                    suggestionsContainer.style.display = 'block';
+                    activeSuggestionIndex = -1;
+                }
+
+                function hideSuggestions() {
+                    suggestionsContainer.style.display = 'none';
+                    activeSuggestionIndex = -1;
+                }
+
+                function highlightSuggestion() {
+                    const suggestions = document.querySelectorAll('.suggestion-item');
+                    suggestions.forEach((item, index) => {
+                        if (index === activeSuggestionIndex) {
+                            item.style.backgroundColor = '#007acc';
+                            item.style.color = 'white';
+                        } else {
+                            item.style.backgroundColor = '';
+                            item.style.color = '';
+                        }
+                    });
+                }
+
+                function selectSuggestion(suggestionElement) {
+                    questionInput.value = suggestionElement.textContent;
+                    hideSuggestions();
+                    questionInput.focus();
+                }
 
                 function copyAndPasteCode() {
-                    const codeText = document.getElementById('codeBlock').value;
+                    const codeTextArea = document.getElementById('codeBlock');
                     const questionArea = document.getElementById('question');
                     const existingContent = questionArea.value.trim();
                     
-                    // Format the code block with ~~~ before and after
-                    const formattedCode = \`~~~\\n\${codeText}\\n~~~\`;
+                    const selectedCode = codeTextArea.value.substring(
+                        codeTextArea.selectionStart,
+                        codeTextArea.selectionEnd
+                    );
+                    
+                    const codeToInsert = selectedCode || codeTextArea.value;
+                    const formattedCode = \`~~~\\n\${codeToInsert}\\n~~~\`;
 
                     if (existingContent) {
                         questionArea.value = existingContent + "\\n\\n" + formattedCode;
@@ -1090,11 +1222,12 @@ function activate(context) {
 
                 function saveCode() {
                     const updatedCode = document.getElementById('codeBlock').value;
-                    vscode.postMessage({ updatedCode });
+                    vscode.postMessage({ type: 'updateCode', updatedCode });
                 }
 
                 function submitPersonalizedQuestion() {
                     const question = document.getElementById('question').value;
+                    const answer = document.getElementById('answer').value;
                     const editedCode = document.getElementById('codeBlock').value;
                     
                     if (question.trim() === '') {
@@ -1102,7 +1235,12 @@ function activate(context) {
                         return;
                     }
 
-                    vscode.postMessage({ question, editedCode });
+                    vscode.postMessage({ 
+                        type: 'submitQuestion', 
+                        question, 
+                        answer, 
+                        editedCode 
+                    });
                 }
             </script>
         </body>
@@ -1110,14 +1248,14 @@ function activate(context) {
     `;
 
     // Handle messages from the Webview
-    panel.webview.onDidReceiveMessage((message) => {
-      if (message.editedCode) {
+    panel.webview.onDidReceiveMessage(async (message) => {
+      if (message.type === 'updateCode') {
         vscode.window.showInformationMessage('Code updated successfully!');
-        selectedText = message.editedCode;
+        selectedText = message.updatedCode;
       }
 
-      if (message.question && message.editedCode) {
-        personalizedQuestionsData.push({
+      if (message.type === 'submitQuestion') {
+        const questionData = {
           filePath: editor.document.uri.fsPath,
           range: {
             start: { line: selection.start.line, character: selection.start.character },
@@ -1125,14 +1263,57 @@ function activate(context) {
           },
           text: message.question,
           highlightedCode: message.editedCode,
-        });
+          excludeFromQuiz: false
+        };
 
-        saveDataToFile('personalizedQuestions.json', personalizedQuestionsData);
+        // Save to personalizedQuestions.json
+        personalizedQuestionsData.push(questionData);
+        await saveDataToFile('personalizedQuestions.json', personalizedQuestionsData);
+
+        // Save answer to quiz_questions_answers.json if provided
+        if (message.answer && message.answer.trim() !== '') {
+          let answersData = [];
+          try {
+            const answersContent = await vscode.workspace.fs.readFile(vscode.Uri.file('quiz_questions_answers.json'));
+            answersData = JSON.parse(answersContent.toString());
+          } catch (error) {
+            // File doesn't exist or is invalid, we'll create a new one
+          }
+
+          const questionId = personalizedQuestionsData.length - 1;
+          answersData.push({
+            questionId,
+            answer: message.answer.trim()
+          });
+
+          await saveDataToFile('quiz_questions_answers.json', answersData);
+        }
+
         vscode.window.showInformationMessage('Personalized question added successfully!');
         panel.dispose();
       }
     });
   });
+
+
+
+
+
+  //Helper function to save data to a file
+
+  async function saveDataToFile(filename, data) {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders) {
+      vscode.window.showErrorMessage('No workspace folder is open.');
+      return;
+    }
+
+    const uri = vscode.Uri.file(`${workspaceFolders[0].uri.fsPath}/${filename}`);
+    await vscode.workspace.fs.writeFile(uri, Buffer.from(JSON.stringify(data, null, 2)));
+  }
+
+
+
 
   function openEditQuestionPanel(index) {
     const question = personalizedQuestionsData[index];
@@ -1351,6 +1532,7 @@ function activate(context) {
         <button onclick="saveChanges(${index})">Save</button>
         <button onclick="revertChanges(${index})" style="background-color: orange; color: white;">Revert</button>
         <button onclick="editQuestion(${index})" style="background-color: green; color: white;">Edit</button>
+        <button onclick="copyQuestionText(${index})" style="background-color: #2196F3; color: white;">Copy</button>
         <br>
         <input type="checkbox" id="exclude-${index}" ${question.excludeFromQuiz ? 'checked' : ''} onchange="toggleExclude(${index})">
         <label for="exclude-${index}">Exclude from Quiz</label>
@@ -1408,6 +1590,32 @@ function activate(context) {
     const vscode = acquireVsCodeApi();
     const originalData = JSON.parse(JSON.stringify(${JSON.stringify(personalizedQuestionsData)}));
     const questionLabels = JSON.parse('${JSON.stringify(questionLabels)}');
+
+    function copyQuestionText(index) {
+      const questionTextArea = document.getElementById('question-' + index);
+      
+      // Check if there's a text selection
+      const selectedText = questionTextArea.value.substring(
+        questionTextArea.selectionStart,
+        questionTextArea.selectionEnd
+      );
+      
+      const textToCopy = selectedText.length > 0 ? selectedText : questionTextArea.value;
+      
+      // Copy to clipboard
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        vscode.postMessage({ 
+          type: 'showInformationMessage', 
+          message: 'Copied to clipboard: ' + 
+            (selectedText.length > 0 ? 'Selected text' : 'Full question')
+        });
+      }).catch(err => {
+        vscode.postMessage({ 
+          type: 'showErrorMessage', 
+          message: 'Failed to copy text: ' + err 
+        });
+      });
+    }
 
     function toggleSummaryTable() {
       const container = document.getElementById('summaryTableContainer');
@@ -1469,6 +1677,14 @@ function activate(context) {
         // Close and reopen the panel to refresh the view
         panel.dispose(); // Close the current panel
         vscode.commands.executeCommand('extension.viewPersonalizedQuestions'); // Reopen it
+      }
+
+      if (message.type === 'showInformationMessage') {
+        vscode.window.showInformationMessage(message.message);
+      }
+
+      if (message.type === 'showErrorMessage') {
+        vscode.window.showErrorMessage(message.message);
       }
     });
 
