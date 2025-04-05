@@ -1018,6 +1018,8 @@ function activate(context) {
 
 
 
+
+
   let addPersonalizedQuestionCommand = vscode.commands.registerCommand('extension.addPersonalizedQuestion', async () => {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
@@ -1034,6 +1036,13 @@ function activate(context) {
     const range = new vscode.Range(selection.start, selection.end);
     let selectedText = editor.document.getText(range);
 
+    // Function to extract student name from file path
+    const extractStudentName = (filePath) => {
+      const parts = filePath.split('/');
+      const cisIndex = parts.findIndex(part => part.startsWith("CIS"));
+      return cisIndex !== -1 && parts.length > cisIndex + 1 ? parts[cisIndex + 1] : "Unknown";
+    };
+
     // Get existing questions for suggestions
     let existingQuestions = [];
     try {
@@ -1047,6 +1056,22 @@ function activate(context) {
     } catch (error) {
       console.log('Could not load existing questions:', error);
     }
+
+    // Function to load existing answers
+    const loadExistingAnswers = async () => {
+      try {
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (workspaceFolders) {
+          const uri = vscode.Uri.file(`${workspaceFolders[0].uri.fsPath}/quiz_questions_answers.json`);
+          const fileContent = await vscode.workspace.fs.readFile(uri);
+          return JSON.parse(fileContent.toString());
+        }
+      } catch (error) {
+        // File doesn't exist yet, return empty array
+        return [];
+      }
+      return [];
+    };
 
     // Create a Webview Panel for adding a personalized question
     const panel = vscode.window.createWebviewPanel(
@@ -1256,6 +1281,7 @@ function activate(context) {
       }
 
       if (message.type === 'submitQuestion') {
+        const studentName = extractStudentName(editor.document.uri.fsPath);
         const questionData = {
           filePath: editor.document.uri.fsPath,
           range: {
@@ -1273,22 +1299,29 @@ function activate(context) {
 
         // Save answer to quiz_questions_answers.json if provided
         if (message.answer && message.answer.trim() !== '') {
-          let answersData = [];
           try {
-            const answersContent = await vscode.workspace.fs.readFile(vscode.Uri.file('quiz_questions_answers.json'));
-            answersData = JSON.parse(answersContent.toString());
+            // Load existing answers
+            let answersData = await loadExistingAnswers();
+
+            // Add new answer
+            answersData.push({
+              questionId: personalizedQuestionsData.length - 1,
+              questionText: message.question,
+              answer: message.answer.trim(),
+              studentName: studentName,
+              filePath: editor.document.uri.fsPath,
+              timestamp: new Date().toISOString(),
+              highlightedCode: message.editedCode
+            });
+
+            // Save back to file
+            await saveDataToFile('quiz_questions_answers.json', answersData);
+            vscode.window.showInformationMessage('Answer saved successfully!');
           } catch (error) {
-            // File doesn't exist or is invalid lazy programming here I know
+            vscode.window.showErrorMessage(`Failed to save answer: ${error.message}`);
           }
-
-          const questionId = personalizedQuestionsData.length - 1;
-          answersData.push({
-            questionId,
-            answer: message.answer.trim()
-          });
-
-          await saveDataToFile('quiz_questions_answers.json', answersData);
         }
+
 
         vscode.window.showInformationMessage('Personalized question added successfully!');
         panel.dispose();
@@ -1381,7 +1414,319 @@ function activate(context) {
   let studentCount = 0;
   const questionLabels = {};
 
-  // Command: View personalized questions
+  // // Command: View personalized questions
+  // let viewPersonalizedQuestionsCommand = vscode.commands.registerCommand('extension.viewPersonalizedQuestions', async () => {
+  //   if (personalizedQuestionsData.length === 0) {
+  //     vscode.window.showInformationMessage('No personalized questions added yet!');
+  //     return;
+  //   }
+
+  //   // Create a Webview Panel for viewing personalized questions
+  //   const panel = vscode.window.createWebviewPanel(
+  //     'viewPersonalizedQuestions',
+  //     'View Personalized Questions',
+  //     vscode.ViewColumn.One,
+  //     { enableScripts: true }
+  //   );
+
+  //   // Function to get all CIS students from the workspace
+  //   const getAllCISStudents = async () => {
+  //     try {
+  //       const workspaceFolders = vscode.workspace.workspaceFolders;
+  //       if (!workspaceFolders) return [];
+
+  //       const cisStudents = new Set();
+  //       for (const folder of workspaceFolders) {
+  //         const folderUri = folder.uri;
+  //         if (folderUri.fsPath.includes("CIS")) {
+  //           const files = await vscode.workspace.fs.readDirectory(folderUri);
+  //           for (const [name, type] of files) {
+  //             if (type === vscode.FileType.Directory) {
+  //               cisStudents.add(name);
+  //             }
+  //           }
+  //         }
+  //       }
+  //       return Array.from(cisStudents);
+  //     } catch (error) {
+  //       console.error("Error fetching CIS students:", error);
+  //       return [];
+  //     }
+  //   };
+
+  //   // Get all CIS students
+  //   const allCISStudents = await getAllCISStudents();
+
+  //   // Calculate question counts per student
+  //   const studentQuestionCounts = new Map();
+  //   let maxQuestions = 0;
+
+  //   // Rebuild the questionLabels since we need it for the webview
+  //   const studentNumbers = new Map();
+  //   let studentCount = 0;
+  //   const questionLabels = {};
+
+  //   personalizedQuestionsData.forEach((question, index) => {
+  //     const studentName = extractStudentName(question.filePath);
+
+  //     if (!studentNumbers.has(studentName)) {
+  //       studentCount++;
+  //       studentNumbers.set(studentName, { count: 0, label: studentCount });
+  //     }
+
+  //     const studentInfo = studentNumbers.get(studentName);
+  //     studentInfo.count++;
+  //     const questionLabel = String.fromCharCode(96 + studentInfo.count); // Convert 1 -> 'a', 2 -> 'b', etc.
+  //     questionLabels[index] = `${studentInfo.label}${questionLabel}`;
+
+  //     // Count questions per student for coloring
+  //     const count = studentQuestionCounts.get(studentName) || 0;
+  //     studentQuestionCounts.set(studentName, count + 1);
+  //     if (count + 1 > maxQuestions) {
+  //       maxQuestions = count + 1;
+  //     }
+  //   });
+
+  //   // Build the summary table HTML
+  //   const buildSummaryTable = () => {
+  //     const summaryRows = allCISStudents.map(student => {
+  //       const count = studentQuestionCounts.get(student) || 0;
+  //       let color = 'red'; // default for zero questions
+
+  //       if (count === maxQuestions && maxQuestions > 0) {
+  //         color = 'green';
+  //       } else if (count > 0 && count < maxQuestions) {
+  //         color = 'yellow';
+  //       }
+
+  //       return `
+  //         <tr style="background-color: ${color}">
+  //           <td>${student}</td>
+  //           <td>${count}</td>
+  //         </tr>
+  //       `;
+  //     }).join('');
+
+  //     return `
+  //       <div id="summaryTableContainer" style="display: none; max-height: 300px; overflow-y: auto; margin-top: 20px;">
+  //         <h2>Student Question Summary</h2>
+  //         <table style="width: 100%; border-collapse: collapse;">
+  //           <thead>
+  //             <tr>
+  //               <th>Student Name</th>
+  //               <th>Question Count</th>
+  //             </tr>
+  //           </thead>
+  //           <tbody>
+  //             ${summaryRows}
+  //           </tbody>
+  //         </table>
+  //       </div>
+  //       <button onclick="toggleSummaryTable()" style="margin-bottom: 10px;">
+  //         Toggle Student Summary
+  //       </button>
+  //     `;
+  //   };
+
+  //   // Determine color for question labels
+  //   const getLabelColor = (studentName) => {
+  //     const count = studentQuestionCounts.get(studentName) || 0;
+  //     if (count === maxQuestions && maxQuestions > 0) return 'green';
+  //     if (count > 0 && count < maxQuestions) return 'yellow';
+  //     return 'red';
+  //   };
+
+  //   const truncateCharacters = (text, charLimit) => {
+  //     return text.length > charLimit ? text.slice(0, charLimit) + '...' : text;
+  //   };
+
+  //   // Build a table with editable fields, revert button, and a checkbox inside the Actions column
+  //   const questionsTable = personalizedQuestionsData.map((question, index) => {
+  //     const studentName = extractStudentName(question.filePath);
+  //     const labelColor = getLabelColor(studentName);
+
+  //     const filePathParts = question.filePath.split('/');
+  //     let shortenedFilePath = filePathParts.length > 2
+  //       ? `.../${filePathParts.slice(-3).join('/')}`
+  //       : question.filePath;
+
+  //     shortenedFilePath = truncateCharacters(shortenedFilePath, 30);
+
+  //     return `
+  //     <tr id="row-${index}">
+  //       <td style="background-color: ${labelColor}">${questionLabels[index]}</td>
+  //       <td title="${question.filePath}">${shortenedFilePath}</td>
+  //       <td>
+  //         <textarea class="code-area" id="code-${index}">${question.highlightedCode || 'No highlighted code'}</textarea>
+  //       </td>
+  //       <td>
+  //         <textarea class="question-area" id="question-${index}">${question.text || 'No question'}</textarea>
+  //       </td>
+  //       <td>
+  //         <button onclick="saveChanges(${index})">Save</button>
+  //         <button onclick="revertChanges(${index})" style="background-color: orange; color: white;">Revert</button>
+  //         <button onclick="editQuestion(${index})" style="background-color: green; color: white;">Edit</button>
+  //         <button onclick="copyQuestionText(${index})" style="background-color: #2196F3; color: white;">Copy</button>
+  //         <br>
+  //         <input type="checkbox" id="exclude-${index}" ${question.excludeFromQuiz ? 'checked' : ''} onchange="toggleExclude(${index})">
+  //         <label for="exclude-${index}">Exclude from Quiz</label>
+  //       </td>
+  //     </tr>
+  //   `;
+  //   }).join('');
+
+  //   // HTML content for the Webview
+  //   // HTML content for the Webview
+  //   panel.webview.html = `
+  // <!DOCTYPE html>
+  // <html lang="en">
+  // <head>
+  //   <meta charset="UTF-8">
+  //   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  //   <title>View Personalized Questions</title>
+  //   <style>
+  //     body { font-family: Arial, sans-serif; margin: 20px; }
+  //     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+  //     th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+  //     th { background-color: #007acc; color: white; }
+  //     textarea { width: 100%; height: 100px; font-size: 14px; border: 1px solid #ccc; padding: 5px; }
+  //     .code-area { background-color: rgb(0, 0, 0); color: white; font-family: monospace; }
+  //     .question-area { background-color: #f4f4f4; color: black; font-family: sans-serif; }
+  //     button { padding: 5px 10px; margin: 5px; cursor: pointer; }
+  //     input[type="checkbox"] { transform: scale(1.2); margin-top: 5px; }
+  //     #summaryTableContainer table th { background-color: #007acc; color: white; }
+  //     #summaryTableContainer table td { border: 1px solid #ddd; padding: 8px; }
+  //     .button-container { display: flex; gap: 10px; margin-bottom: 10px; }
+  //   </style>
+  // </head>
+  // <body>
+  //   <h1>All Personalized Questions</h1>
+
+  //     <button onclick="refreshView()" style="background-color: #4CAF50; color: white;">Refresh View</button>
+
+  //   ${buildSummaryTable()}
+  //   <table>
+  //     <thead>
+  //       <tr>
+  //         <th>#</th>
+  //         <th>File</th>
+  //         <th>Highlighted Code</th>
+  //         <th>Question</th>
+  //         <th>Actions</th>
+  //       </tr>
+  //     </thead>
+  //     <tbody>
+  //       ${questionsTable}
+  //     </tbody>
+  //   </table>
+
+  //   <script>
+  //     const vscode = acquireVsCodeApi();
+  //     const originalData = JSON.parse(JSON.stringify(${JSON.stringify(personalizedQuestionsData)}));
+  //     const questionLabels = JSON.parse('${JSON.stringify(questionLabels)}');
+
+  //     function copyQuestionText(index) {
+  //       const questionTextArea = document.getElementById('question-' + index);
+
+  //       // Check if there's a text selection
+  //       const selectedText = questionTextArea.value.substring(
+  //         questionTextArea.selectionStart,
+  //         questionTextArea.selectionEnd
+  //       );
+
+  //       const textToCopy = selectedText.length > 0 ? selectedText : questionTextArea.value;
+
+  //       // Copy to clipboard
+  //       navigator.clipboard.writeText(textToCopy).then(() => {
+  //         vscode.postMessage({ 
+  //           type: 'showInformationMessage', 
+  //           message: 'Copied to clipboard: ' + 
+  //             (selectedText.length > 0 ? 'Selected text' : 'Full question')
+  //         });
+  //       }).catch(err => {
+  //         vscode.postMessage({ 
+  //           type: 'showErrorMessage', 
+  //           message: 'Failed to copy text: ' + err 
+  //         });
+  //       });
+  //     }
+
+  //     function toggleSummaryTable() {
+  //       const container = document.getElementById('summaryTableContainer');
+  //       container.style.display = container.style.display === 'none' ? 'block' : 'none';
+  //     }
+
+  //     function refreshView() {
+  //       vscode.postMessage({ type: 'refreshView' });
+  //     }
+
+  //     function saveChanges(index) {
+  //       const updatedCode = document.getElementById('code-' + index).value;
+  //       const updatedQuestion = document.getElementById('question-' + index).value;
+  //       vscode.postMessage({ type: 'saveChanges', index, updatedCode, updatedQuestion });
+  //     }
+
+  //     function revertChanges(index) {
+  //       document.getElementById('code-' + index).value = originalData[index].highlightedCode;
+  //       document.getElementById('question-' + index).value = originalData[index].text;
+  //       document.getElementById('exclude-' + index).checked = originalData[index].excludeFromQuiz;
+  //     }
+
+  //     function toggleExclude(index) {
+  //       const excludeStatus = document.getElementById('exclude-' + index).checked;
+  //       vscode.postMessage({ type: 'toggleExclude', index, excludeStatus });
+  //     }
+
+  //     function editQuestion(index) {
+  //       vscode.postMessage({ type: 'editQuestion', index });
+  //     }
+  //   </script>
+  // </body>
+  // </html>
+  // `;
+
+  //   // Handle messages from the Webview
+  //   panel.webview.onDidReceiveMessage((message) => {
+  //     if (message.type === 'saveChanges') {
+  //       // Update the data in memory
+  //       personalizedQuestionsData[message.index].highlightedCode = message.updatedCode;
+  //       personalizedQuestionsData[message.index].text = message.updatedQuestion;
+
+  //       saveDataToFile('personalizedQuestions.json', personalizedQuestionsData);
+  //       vscode.window.showInformationMessage('Changes saved successfully!');
+  //     }
+
+  //     if (message.type === 'toggleExclude') {
+  //       // Save exclude checkbox status automatically
+  //       personalizedQuestionsData[message.index].excludeFromQuiz = message.excludeStatus;
+  //       saveDataToFile('personalizedQuestions.json', personalizedQuestionsData);
+  //     }
+
+  //     if (message.type === 'editQuestion') {
+  //       // Open a new webview panel for editing the question
+  //       openEditQuestionPanel(message.index);
+  //     }
+
+  //     if (message.type === 'refreshView') {
+  //       // Close and reopen the panel to refresh the view
+  //       panel.dispose(); // Close the current panel
+  //       vscode.commands.executeCommand('extension.viewPersonalizedQuestions'); // Reopen it
+  //     }
+
+  //     if (message.type === 'showInformationMessage') {
+  //       vscode.window.showInformationMessage(message.message);
+  //     }
+
+  //     if (message.type === 'showErrorMessage') {
+  //       vscode.window.showErrorMessage(message.message);
+  //     }
+  //   });
+
+
+  // });
+
+
+
   let viewPersonalizedQuestionsCommand = vscode.commands.registerCommand('extension.viewPersonalizedQuestions', async () => {
     if (personalizedQuestionsData.length === 0) {
       vscode.window.showInformationMessage('No personalized questions added yet!');
@@ -1467,32 +1812,29 @@ function activate(context) {
         }
 
         return `
-        <tr style="background-color: ${color}">
-          <td>${student}</td>
-          <td>${count}</td>
-        </tr>
-      `;
+          <tr style="background-color: ${color}">
+            <td>${student}</td>
+            <td>${count}</td>
+          </tr>
+        `;
       }).join('');
 
       return `
-      <div id="summaryTableContainer" style="display: none; max-height: 300px; overflow-y: auto; margin-top: 20px;">
-        <h2>Student Question Summary</h2>
-        <table style="width: 100%; border-collapse: collapse;">
-          <thead>
-            <tr>
-              <th>Student Name</th>
-              <th>Question Count</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${summaryRows}
-          </tbody>
-        </table>
-      </div>
-      <button onclick="toggleSummaryTable()" style="margin-bottom: 10px;">
-        Toggle Student Summary
-      </button>
-    `;
+        <div id="summaryTableContainer" style="display: none; max-height: 300px; overflow-y: auto; margin-top: 20px;">
+          <h2>Student Question Summary</h2>
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr>
+                <th>Student Name</th>
+                <th>Question Count</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${summaryRows}
+            </tbody>
+          </table>
+        </div>
+      `;
     };
 
     // Determine color for question labels
@@ -1520,137 +1862,349 @@ function activate(context) {
       shortenedFilePath = truncateCharacters(shortenedFilePath, 30);
 
       return `
-    <tr id="row-${index}">
-      <td style="background-color: ${labelColor}">${questionLabels[index]}</td>
-      <td title="${question.filePath}">${shortenedFilePath}</td>
-      <td>
-        <textarea class="code-area" id="code-${index}">${question.highlightedCode || 'No highlighted code'}</textarea>
-      </td>
-      <td>
-        <textarea class="question-area" id="question-${index}">${question.text || 'No question'}</textarea>
-      </td>
-      <td>
-        <button onclick="saveChanges(${index})">Save</button>
-        <button onclick="revertChanges(${index})" style="background-color: orange; color: white;">Revert</button>
-        <button onclick="editQuestion(${index})" style="background-color: green; color: white;">Edit</button>
-        <button onclick="copyQuestionText(${index})" style="background-color: #2196F3; color: white;">Copy</button>
-        <br>
-        <input type="checkbox" id="exclude-${index}" ${question.excludeFromQuiz ? 'checked' : ''} onchange="toggleExclude(${index})">
-        <label for="exclude-${index}">Exclude from Quiz</label>
-      </td>
-    </tr>
-  `;
+      <tr id="row-${index}" data-index="${index}" data-label="${questionLabels[index]}" data-file="${shortenedFilePath}" data-code="${question.highlightedCode || 'No highlighted code'}" data-question="${question.text || 'No question'}">
+        <td style="background-color: ${labelColor}">${questionLabels[index]}</td>
+        <td title="${question.filePath}">${shortenedFilePath}</td>
+        <td>
+          <textarea class="code-area" id="code-${index}">${question.highlightedCode || 'No highlighted code'}</textarea>
+        </td>
+        <td>
+          <textarea class="question-area" id="question-${index}">${question.text || 'No question'}</textarea>
+        </td>
+        <td>
+          <button onclick="saveChanges(${index})">Save</button>
+          <button onclick="revertChanges(${index})" style="background-color: orange; color: white;">Revert</button>
+          <button onclick="editQuestion(${index})" style="background-color: green; color: white;">Edit</button>
+          <button onclick="copyQuestionText(${index})" style="background-color: #2196F3; color: white;">Copy</button>
+          <br>
+          <input type="checkbox" id="exclude-${index}" ${question.excludeFromQuiz ? 'checked' : ''} onchange="toggleExclude(${index})">
+          <label for="exclude-${index}">Exclude from Quiz</label>
+        </td>
+      </tr>
+    `;
     }).join('');
 
     // HTML content for the Webview
-    // HTML content for the Webview
     panel.webview.html = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>View Personalized Questions</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    th { background-color: #007acc; color: white; }
-    textarea { width: 100%; height: 100px; font-size: 14px; border: 1px solid #ccc; padding: 5px; }
-    .code-area { background-color: rgb(0, 0, 0); color: white; font-family: monospace; }
-    .question-area { background-color: #f4f4f4; color: black; font-family: sans-serif; }
-    button { padding: 5px 10px; margin: 5px; cursor: pointer; }
-    input[type="checkbox"] { transform: scale(1.2); margin-top: 5px; }
-    #summaryTableContainer table th { background-color: #007acc; color: white; }
-    #summaryTableContainer table td { border: 1px solid #ddd; padding: 8px; }
-    .button-container { display: flex; gap: 10px; margin-bottom: 10px; }
-  </style>
-</head>
-<body>
-  <h1>All Personalized Questions</h1>
-  
-    <button onclick="refreshView()" style="background-color: #4CAF50; color: white;">Refresh View</button>
-  
-  ${buildSummaryTable()}
-  <table>
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>File</th>
-        <th>Highlighted Code</th>
-        <th>Question</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${questionsTable}
-    </tbody>
-  </table>
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Personalized Questions</title>
+    <style>
+      body { 
+        font-family: Arial, sans-serif; 
+        margin: 20px; 
+        background-color: #f5f5f5;
+        color: black;
+      }
+      .header-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+      .controls-container {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .search-container {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .pagination-container {
+        display: flex;
+        justify-content: center;
+        margin-top: 20px;
+        gap: 5px;
+      }
+      table { 
+        width: 100%; 
+        border-collapse: collapse; 
+        margin-top: 20px; 
+        background-color: white;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      }
+      th, td { 
+        border: 1px solid #ddd; 
+        padding: 12px; 
+        text-align: left; 
+      }
+      th { 
+        background-color: #007acc; 
+        color: white; 
+        position: sticky;
+        top: 0;
+      }
+      textarea { 
+        width: 100%; 
+        height: 100px; 
+        font-size: 14px; 
+        border: 1px solid #ccc; 
+        padding: 8px; 
+        resize: vertical;
+      }
+      .code-area { 
+        background-color: #1e1e1e; 
+        color: #d4d4d4; 
+        font-family: monospace; 
+      }
+      .question-area { 
+        background-color: #f9f9f9; 
+        color: #333; 
+        font-family: sans-serif; 
+      }
+      button { 
+        padding: 8px 12px; 
+        margin: 2px; 
+        cursor: pointer; 
+        border: none;
+        border-radius: 4px;
+        font-weight: bold;
+      }
+      button:hover {
+        opacity: 0.9;
+      }
+      #refreshBtn {
+        background-color: #4CAF50; 
+        color: white;
+      }
+      #toggleSummaryBtn {
+        background-color: #673AB7;
+        color: white;
+      }
+      input[type="text"] {
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        width: 250px;
+      }
+      input[type="checkbox"] { 
+        transform: scale(1.2); 
+        margin-top: 5px; 
+      }
+      #summaryTableContainer table th { 
+        background-color: #007acc; 
+        color: white; 
+      }
+      #summaryTableContainer table td { 
+        border: 1px solid #ddd; 
+        padding: 8px; 
+      }
+      .total-count {
+        font-size: 18px;
+        font-weight: bold;
+        color: #333;
+      }
+      .page-btn {
+        padding: 5px 10px;
+        border: 1px solid #ddd;
+        background-color: white;
+        cursor: pointer;
+      }
+      .page-btn.active {
+        background-color: #007acc;
+        color: white;
+        border-color: #007acc;
+      }
+      .page-btn:hover:not(.active) {
+        background-color: #f1f1f1;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header-container">
+      <h1>All Personalized Questions</h1>
+      <div class="total-count">Total Questions: ${personalizedQuestionsData.length}</div>
+    </div>
 
-  <script>
-    const vscode = acquireVsCodeApi();
-    const originalData = JSON.parse(JSON.stringify(${JSON.stringify(personalizedQuestionsData)}));
-    const questionLabels = JSON.parse('${JSON.stringify(questionLabels)}');
+    <div class="controls-container">
+      <button id="refreshBtn" onclick="refreshView()">Refresh View</button>
+      <button id="toggleSummaryBtn" onclick="toggleSummaryTable()">Toggle Student Summary</button>
+      <div class="search-container">
+        <input type="text" id="searchInput" placeholder="Search questions..." oninput="filterQuestions()">
+        <span id="filterCount"></span>
+      </div>
+    </div>
 
-    function copyQuestionText(index) {
-      const questionTextArea = document.getElementById('question-' + index);
+    ${buildSummaryTable()}
+    
+    <table id="questionsTable">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>File</th>
+          <th>Highlighted Code</th>
+          <th>Question</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="questionsTableBody">
+        ${questionsTable}
+      </tbody>
+    </table>
+
+    <div class="pagination-container" id="paginationContainer"></div>
+
+    <script>
+      const vscode = acquireVsCodeApi();
+      const originalData = JSON.parse(JSON.stringify(${JSON.stringify(personalizedQuestionsData)}));
+      const questionLabels = JSON.parse('${JSON.stringify(questionLabels)}');
+      const itemsPerPage = 15;
+      let currentPage = 1;
+      let filteredQuestions = [];
+
+      function initializePagination() {
+        const visibleRows = Array.from(document.querySelectorAll('#questionsTableBody tr'))
+          .filter(row => row.style.display !== 'none');
+        const totalPages = Math.ceil(visibleRows.length / itemsPerPage);
+        const paginationContainer = document.getElementById('paginationContainer');
+        
+        paginationContainer.innerHTML = '';
+        
+        if (totalPages <= 1) {
+          // Show all rows if only one page
+          visibleRows.forEach(row => row.style.display = '');
+          return;
+        }
+        
+        for (let i = 1; i <= totalPages; i++) {
+          const pageBtn = document.createElement('button');
+          pageBtn.className = 'page-btn' + (i === currentPage ? ' active' : '');
+          pageBtn.textContent = i;
+          pageBtn.onclick = () => goToPage(i);
+          paginationContainer.appendChild(pageBtn);
+        }
+        
+        updateVisibleRows();
+      }
       
-      // Check if there's a text selection
-      const selectedText = questionTextArea.value.substring(
-        questionTextArea.selectionStart,
-        questionTextArea.selectionEnd
-      );
-      
-      const textToCopy = selectedText.length > 0 ? selectedText : questionTextArea.value;
-      
-      // Copy to clipboard
-      navigator.clipboard.writeText(textToCopy).then(() => {
-        vscode.postMessage({ 
-          type: 'showInformationMessage', 
-          message: 'Copied to clipboard: ' + 
-            (selectedText.length > 0 ? 'Selected text' : 'Full question')
+      function goToPage(page) {
+        currentPage = page;
+        updateVisibleRows();
+        
+        // Update active state for pagination buttons
+        document.querySelectorAll('.page-btn').forEach(btn => {
+          btn.classList.toggle('active', parseInt(btn.textContent) === page);
         });
-      }).catch(err => {
-        vscode.postMessage({ 
-          type: 'showErrorMessage', 
-          message: 'Failed to copy text: ' + err 
+      }
+      
+      function updateVisibleRows() {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const visibleRows = Array.from(document.querySelectorAll('#questionsTableBody tr'))
+          .filter(row => row.style.display !== 'none');
+        
+        visibleRows.forEach((row, index) => {
+          row.style.display = (index >= startIndex && index < endIndex) ? '' : 'none';
         });
+      }
+      
+      function filterQuestions() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const rows = document.querySelectorAll('#questionsTableBody tr');
+        let matchCount = 0;
+
+        rows.forEach(row => {
+          const label = row.dataset.label.toLowerCase();
+          const file = row.dataset.file.toLowerCase();
+          const code = row.dataset.code.toLowerCase();
+          const question = row.dataset.question.toLowerCase();
+          
+          const matches = label.includes(searchTerm) || 
+                          file.includes(searchTerm) || 
+                          code.includes(searchTerm) || 
+                          question.includes(searchTerm);
+          
+          if (matches) {
+            row.style.display = '';
+            matchCount++;
+          } else {
+            row.style.display = 'none';
+          }
+        });
+
+        document.getElementById('filterCount').textContent = searchTerm 
+          ? matchCount > 0 
+            ? \`\${matchCount} matches\` 
+            : 'No matches'
+          : '';
+        
+        // Reset pagination when filtering
+        currentPage = 1;
+        initializePagination();
+      }
+
+      function copyQuestionText(index) {
+        const questionTextArea = document.getElementById('question-' + index);
+
+        // Check if there's a text selection
+        const selectedText = questionTextArea.value.substring(
+          questionTextArea.selectionStart,
+          questionTextArea.selectionEnd
+        );
+
+        const textToCopy = selectedText.length > 0 ? selectedText : questionTextArea.value;
+
+        // Copy to clipboard
+        navigator.clipboard.writeText(textToCopy).then(() => {
+          vscode.postMessage({ 
+            type: 'showInformationMessage', 
+            message: 'Copied to clipboard: ' + 
+              (selectedText.length > 0 ? 'Selected text' : 'Full question')
+          });
+        }).catch(err => {
+          vscode.postMessage({ 
+            type: 'showErrorMessage', 
+            message: 'Failed to copy text: ' + err 
+          });
+        });
+      }
+
+      function toggleSummaryTable() {
+        const container = document.getElementById('summaryTableContainer');
+        container.style.display = container.style.display === 'none' ? 'block' : 'none';
+      }
+
+      function refreshView() {
+        vscode.postMessage({ type: 'refreshView' });
+      }
+
+      function saveChanges(index) {
+        const updatedCode = document.getElementById('code-' + index).value;
+        const updatedQuestion = document.getElementById('question-' + index).value;
+        vscode.postMessage({ type: 'saveChanges', index, updatedCode, updatedQuestion });
+      }
+
+      function revertChanges(index) {
+        document.getElementById('code-' + index).value = originalData[index].highlightedCode;
+        document.getElementById('question-' + index).value = originalData[index].text;
+        document.getElementById('exclude-' + index).checked = originalData[index].excludeFromQuiz;
+      }
+
+      function toggleExclude(index) {
+        const excludeStatus = document.getElementById('exclude-' + index).checked;
+        vscode.postMessage({ type: 'toggleExclude', index, excludeStatus });
+      }
+
+      function editQuestion(index) {
+        vscode.postMessage({ type: 'editQuestion', index });
+      }
+      
+      // Initialize pagination when the page loads
+      window.addEventListener('load', () => {
+        initializePagination();
       });
-    }
-
-    function toggleSummaryTable() {
-      const container = document.getElementById('summaryTableContainer');
-      container.style.display = container.style.display === 'none' ? 'block' : 'none';
-    }
-
-    function refreshView() {
-      vscode.postMessage({ type: 'refreshView' });
-    }
-
-    function saveChanges(index) {
-      const updatedCode = document.getElementById('code-' + index).value;
-      const updatedQuestion = document.getElementById('question-' + index).value;
-      vscode.postMessage({ type: 'saveChanges', index, updatedCode, updatedQuestion });
-    }
-
-    function revertChanges(index) {
-      document.getElementById('code-' + index).value = originalData[index].highlightedCode;
-      document.getElementById('question-' + index).value = originalData[index].text;
-      document.getElementById('exclude-' + index).checked = originalData[index].excludeFromQuiz;
-    }
-
-    function toggleExclude(index) {
-      const excludeStatus = document.getElementById('exclude-' + index).checked;
-      vscode.postMessage({ type: 'toggleExclude', index, excludeStatus });
-    }
-
-    function editQuestion(index) {
-      vscode.postMessage({ type: 'editQuestion', index });
-    }
-  </script>
-</body>
-</html>
-`;
+    </script>
+  </body>
+  </html>
+  `;
 
     // Handle messages from the Webview
     panel.webview.onDidReceiveMessage((message) => {
@@ -1688,8 +2242,6 @@ function activate(context) {
         vscode.window.showErrorMessage(message.message);
       }
     });
-
-
   });
 
 
