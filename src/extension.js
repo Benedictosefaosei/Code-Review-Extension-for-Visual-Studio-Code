@@ -1223,6 +1223,34 @@ function activate(context) {
     });
   }
 
+
+  const studentNumbers = new Map();
+  let studentCount = 0;
+  const questionLabels = {};
+
+  // Function to extract student name from file path
+  const extractStudentName = (filePath) => {
+    const parts = filePath.split('/');
+    const cisIndex = parts.findIndex(part => part.startsWith("CIS"));
+    return cisIndex !== -1 && parts.length > cisIndex + 1 ? parts[cisIndex + 1] : "Unknown";
+  };
+
+
+  // Assign student numbers and labels
+  personalizedQuestionsData.forEach((question, index) => {
+    const studentName = extractStudentName(question.filePath);
+
+    if (!studentNumbers.has(studentName)) {
+      studentCount++;
+      studentNumbers.set(studentName, { count: 0, label: studentCount });
+    }
+
+    const studentInfo = studentNumbers.get(studentName);
+    studentInfo.count++;
+    const questionLabel = String.fromCharCode(96 + studentInfo.count); // Convert 1 -> 'a', 2 -> 'b', etc.
+    questionLabels[index] = `${studentInfo.label}${questionLabel}`;
+  });
+
   // Command: View personalized questions
   let viewPersonalizedQuestionsCommand = vscode.commands.registerCommand('extension.viewPersonalizedQuestions', async () => {
     if (personalizedQuestionsData.length === 0) {
@@ -1252,25 +1280,25 @@ function activate(context) {
       shortenedFilePath = truncateCharacters(shortenedFilePath, 30);
 
       return `
-      <tr id="row-${index}">
-        <td>${index + 1}</td>
-        <td title="${question.filePath}">${shortenedFilePath}</td>
-        <td>
-          <textarea class="code-area" id="code-${index}">${question.highlightedCode || 'No highlighted code'}</textarea>
-        </td>
-        <td>
-          <textarea class="question-area" id="question-${index}">${question.text || 'No question'}</textarea>
-        </td>
-        <td>
-          <button onclick="saveChanges(${index})">Save</button>
-          <button onclick="revertChanges(${index})" style="background-color: orange; color: white;">Revert</button>
-          <button onclick="editQuestion(${index})" style="background-color: green; color: white;">Edit</button>
-          <br>
-          <input type="checkbox" id="exclude-${index}" ${question.excludeFromQuiz ? 'checked' : ''} onchange="toggleExclude(${index})">
-          <label for="exclude-${index}">Exclude from Quiz</label>
-        </td>
-      </tr>
-    `;
+    <tr id="row-${index}">
+      <td>${questionLabels[index]}</td> <!-- Numbering updated -->
+      <td title="${question.filePath}">${shortenedFilePath}</td>
+      <td>
+        <textarea class="code-area" id="code-${index}">${question.highlightedCode || 'No highlighted code'}</textarea>
+      </td>
+      <td>
+        <textarea class="question-area" id="question-${index}">${question.text || 'No question'}</textarea>
+      </td>
+      <td>
+        <button onclick="saveChanges(${index})">Save</button>
+        <button onclick="revertChanges(${index})" style="background-color: orange; color: white;">Revert</button>
+        <button onclick="editQuestion(${index})" style="background-color: green; color: white;">Edit</button>
+        <br>
+        <input type="checkbox" id="exclude-${index}" ${question.excludeFromQuiz ? 'checked' : ''} onchange="toggleExclude(${index})">
+        <label for="exclude-${index}">Exclude from Quiz</label>
+      </td>
+    </tr>
+  `;
     }).join('');
 
     // HTML content for the Webview
