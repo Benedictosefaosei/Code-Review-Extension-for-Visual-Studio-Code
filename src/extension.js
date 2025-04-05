@@ -1073,7 +1073,8 @@ function activate(context) {
                 .optional { color: #666; font-style: italic; }
                 #suggestions { 
                     position: absolute; 
-                    background: white; 
+                    background: white;
+                    color: red;
                     border: 1px solid #ddd; 
                     max-height: 200px; 
                     overflow-y: auto; 
@@ -1277,7 +1278,7 @@ function activate(context) {
             const answersContent = await vscode.workspace.fs.readFile(vscode.Uri.file('quiz_questions_answers.json'));
             answersData = JSON.parse(answersContent.toString());
           } catch (error) {
-            // File doesn't exist or is invalid, we'll create a new one
+            // File doesn't exist or is invalid lazy programming here I know
           }
 
           const questionId = personalizedQuestionsData.length - 1;
