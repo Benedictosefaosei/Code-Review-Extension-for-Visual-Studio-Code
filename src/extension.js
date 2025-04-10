@@ -1584,7 +1584,7 @@ function activate(context) {
         body { 
             font-family: Arial, sans-serif; 
             margin: 20px; 
-            background-color: #f5f5f5;
+            background-color:rgb(255, 255, 255);
             color: black;
         }
         .header-container {
@@ -2260,7 +2260,8 @@ function activate(context) {
       // Create combined question.html with proper PL structure
       let combinedHTMLContent = `<pl-question-panel>
     <markdown>
-        # ${config.title} - All Student Questions
+# ${config.title} - All Student Questions
+<hr><br>
     </markdown>
 </pl-question-panel>`;
 
@@ -2269,7 +2270,7 @@ function activate(context) {
         combinedHTMLContent += `
 <pl-question-panel>
     <markdown>
-        ## Student: ${studentName}
+## Student: ${studentName}
     </markdown>
 </pl-question-panel>`;
 
@@ -2286,7 +2287,9 @@ function activate(context) {
         ${questionText}
     </markdown>
     ${codeBlock}
-</pl-question-panel>`;
+</pl-question-panel>
+<br><hr><br>
+`;
         });
       }
 
