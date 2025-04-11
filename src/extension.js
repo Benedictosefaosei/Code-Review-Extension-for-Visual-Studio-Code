@@ -102,6 +102,7 @@ function generateInfoJSON(title, topic) {
   return {
     uuid: uuidv4(),
     type: "v3",
+    gradingMethod: "Manual",
     title,
     topic
   };
@@ -2190,9 +2191,9 @@ function activate(context) {
           // Create question.html with proper PL structure
           const questionHTMLContent = `
 <pl-question-panel>
-    <markdown>
-        ${question.text || 'No question text provided'}
-    </markdown>
+<markdown>
+${question.text || 'No question text provided'}
+</markdown>
     ${question.highlightedCode ? `<pl-code language="${config.language}">\n${question.highlightedCode}\n</pl-code>` : ''}
 </pl-question-panel>`;
 
@@ -2202,6 +2203,7 @@ function activate(context) {
           fs.writeFileSync(path.join(questionFolderPath, 'info.json'), JSON.stringify({
             uuid: uuidv4(),
             type: "v3",
+            gradingMethod: "Manual",
             title: `${config.title} Q${index + 1}`,
             topic: config.topic
           }, null, 2));
@@ -2259,19 +2261,19 @@ function activate(context) {
 
       // Create combined question.html with proper PL structure
       let combinedHTMLContent = `<pl-question-panel>
-    <markdown>
+<markdown>
 # ${config.title} - All Student Questions
 <hr><br>
-    </markdown>
+</markdown>
 </pl-question-panel>`;
 
       // Add each student's questions
       for (const [studentName, questions] of Object.entries(questionsByStudent)) {
         combinedHTMLContent += `
 <pl-question-panel>
-    <markdown>
+<markdown>
 ## Student: ${studentName}
-    </markdown>
+</markdown>
 </pl-question-panel>`;
 
         questions.forEach((question, index) => {
@@ -2282,10 +2284,10 @@ function activate(context) {
 
           combinedHTMLContent += `
 <pl-question-panel>
-    <markdown>
-        ### Question ${index + 1}
-        ${questionText}
-    </markdown>
+<markdown>
+### Question ${index + 1}
+${questionText}
+</markdown>
     ${codeBlock}
 </pl-question-panel>
 <br><hr><br>
@@ -2304,6 +2306,7 @@ function activate(context) {
         path.join(instructorQuestionFolderPath, 'info.json'),
         JSON.stringify({
           uuid: uuidv4(),
+          gradingMethod: "Manual",
           type: "v3",
           title: `${config.title} - All Questions`,
           topic: config.topic
@@ -2337,13 +2340,7 @@ function activate(context) {
               description: "All student questions combined"
             }]
           }
-        ],
-        instructorSettings: {
-          showStudentNames: true,
-          showCorrectAnswers: true,
-          allowQuestionPreview: true,
-          gradingMethod: "Manual"
-        }
+        ]
       };
 
       fs.writeFileSync(
