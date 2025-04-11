@@ -76,7 +76,27 @@
           "when": "editorHasSelection"
         }
       ]
-    }
+    },
+    "keybindings": [
+      {
+        "command": "extension.generatePersonalizedQuiz",
+        "key": "ctrl+shift+g",
+        "mac": "cmd+shift+g",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "extension.addPersonalizedQuestion",
+        "key": "ctrl+shift+n",
+        "mac": "cmd+shift+n",
+        "when": "editorTextFocus && editorHasSelection"
+      },
+      {
+        "command": "extension.viewPersonalizedQuestions",
+        "key": "ctrl+shift+v",
+        "mac": "cmd+shift+v",
+        "when": "editorTextFocus"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npx tsc -p ./"
