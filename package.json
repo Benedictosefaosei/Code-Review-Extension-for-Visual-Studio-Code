@@ -86,8 +86,8 @@
       },
       {
         "command": "extension.addPersonalizedQuestion",
-        "key": "ctrl+shift+n",
-        "mac": "cmd+shift+n",
+        "key": "ctrl+shift+.",
+        "mac": "cmd+shift+.",
         "when": "editorTextFocus && editorHasSelection"
       },
       {
